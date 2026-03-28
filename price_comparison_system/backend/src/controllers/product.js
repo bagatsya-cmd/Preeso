@@ -169,3 +169,76 @@ exports.getUserAlerts = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// POST /api/products/history/view/:id (auth required)
+exports.recordView = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const productId = req.params.id;
+    // Remove if already exists to put it at the end
+    user.viewHistory = user.viewHistory.filter(id => id.toString() !== productId);
+    user.viewHistory.push(productId);
+    // Keep only last 20
+    if (user.viewHistory.length > 20) user.viewHistory.shift();
+    await user.save();
+    res.json({ message: 'View recorded' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// POST /api/products/history/search (auth required)
+exports.recordSearch = async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ message: 'Query required' });
+    const user = await User.findById(req.user.id);
+    user.searchHistory = user.searchHistory.filter(q => q !== query);
+    user.searchHistory.push(query);
+    if (user.searchHistory.length > 10) user.searchHistory.shift();
+    await user.save();
+    res.json({ message: 'Search recorded' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// GET /api/products/user/recommendations (auth required)
+exports.getRecommendations = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate('viewHistory');
+    
+    // Get categories or tags from viewed products
+    const viewedCategories = user.viewHistory.map(p => p.category).filter(Boolean);
+    const uniqueCategories = [...new Set(viewedCategories)];
+    
+    let recommendations = [];
+    if (uniqueCategories.length > 0) {
+      recommendations = await Product.find({
+        category: { $in: uniqueCategories },
+        _id: { $nin: user.viewHistory.map(p => p._id) }
+      }).limit(10).sort({ lastUpdated: -1 });
+    }
+    
+    // Fallback if not enough recommendations
+    if (recommendations.length < 5) {
+      const trending = await Product.find({ _id: { $nin: user.viewHistory.map(p => p._id) }}).sort({ lastUpdated: -1 }).limit(10 - recommendations.length);
+      recommendations = [...recommendations, ...trending];
+    }
+    
+    // Deduplicate just in case
+    const uniqueRecs = [];
+    const seen = new Set();
+    for (const r of recommendations) {
+      if (!seen.has(r._id.toString())) {
+        seen.add(r._id.toString());
+        uniqueRecs.push(r);
+      }
+    }
+
+    res.json(uniqueRecs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

@@ -16,15 +16,22 @@ const PLATFORM_LOGOS = [
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [trending, setTrending] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [category, setCategory] = useState('All');
   const [sortBy, setSortBy] = useState('bestPrice');
   const [error, setError] = useState('');
 
-  // Load trending on mount
+  // Load trending and recommendations on mount
   useEffect(() => {
     axios.get('/api/products/trending').then(r => setTrending(r.data)).catch(() => { });
+
+    const token = localStorage.getItem('comparex_token');
+    if (token) {
+      axios.get('/api/products/user/recommendations', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => setRecommendations(r.data)).catch(() => { });
+    }
   }, []);
 
   const handleSearch = async (query) => {
@@ -33,6 +40,11 @@ export default function Home() {
       const res = await axios.get(`/api/products/search?query=${encodeURIComponent(query)}`);
       setProducts(res.data);
       setSearched(true);
+
+      const token = localStorage.getItem('comparex_token');
+      if (token) {
+        axios.post('/api/products/history/search', { query }, { headers: { Authorization: `Bearer ${token}` } }).catch(()=>{});
+      }
     } catch {
       setError('Failed to fetch results. Make sure the backend is running.');
     } finally { setLoading(false); }
@@ -176,6 +188,20 @@ export default function Home() {
               <div style={{ fontSize: '4rem', marginBottom: 16 }}>🔍</div>
               <h3 style={{ fontSize: '1.3rem', color: '#9ca3af', marginBottom: 8 }}>Start searching to compare prices</h3>
               <p style={{ fontSize: '0.875rem' }}>Try searching for "iPhone", "Samsung", "headphones" or any product name</p>
+            </div>
+          )}
+
+          {/* Recommendations (Only if not searched) */}
+          {!searched && recommendations.length > 0 && (
+            <div style={{ marginTop: 60 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>⭐</span> Recommended for You
+                </h2>
+              </div>
+              <div className="products-grid">
+                {recommendations.slice(0, 4).map(p => <ProductCard key={p._id} product={p} />)}
+              </div>
             </div>
           )}
         </div>

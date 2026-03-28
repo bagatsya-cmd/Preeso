@@ -25,7 +25,16 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (!id) return;
-    axios.get(`/api/products/${id}`).then(r => { setProduct(r.data); setLoading(false); }).catch(() => setLoading(false));
+    axios.get(`/api/products/${id}`).then(r => { 
+      setProduct(r.data); 
+      setLoading(false); 
+      
+      // record view
+      const token = localStorage.getItem('comparex_token');
+      if (token) {
+        axios.post(`/api/products/history/view/${id}`, {}, { headers: { Authorization: `Bearer ${token}` } }).catch(()=>{});
+      }
+    }).catch(() => setLoading(false));
   }, [id]);
 
   if (loading) return (

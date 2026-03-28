@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
   alerts: [AlertSchema],
+  viewHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+  searchHistory: [{ type: String }],
   createdAt: { type: Date, default: Date.now }
 });
 

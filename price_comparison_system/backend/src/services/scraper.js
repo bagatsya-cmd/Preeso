@@ -72,55 +72,60 @@ function findDemoProducts(query) {
 }
 
 // ------------------------------------------------------------------
-// Amazon.in scraper
+// Real-Time Product Search RapidAPI
 // ------------------------------------------------------------------
-async function scrapeAmazon(query) {
-    const url = `https://www.amazon.in/s?k=${encodeURIComponent(query)}&ref=nb_sb_noss`;
-    try {
-        const { data } = await axios.get(url, { headers: HEADERS, timeout: TIMEOUT });
-        const $ = cheerio.load(data);
-        const results = [];
-        $('[data-component-type="s-search-result"]').slice(0, 3).each((_, el) => {
-            const name = $(el).find('h2 a span').first().text().trim();
-            const priceWhole = $(el).find('.a-price-whole').first().text().replace(/,/g, '').trim();
-            const priceOrig = $(el).find('.a-price.a-text-price span.a-offscreen').first().text().replace(/[₹,]/g, '').trim();
-            const rating = parseFloat($(el).find('.a-icon-star-small .a-icon-alt').first().text()) || 4.0;
-            const link = 'https://www.amazon.in' + $(el).find('h2 a').attr('href');
-            const image = $(el).find('.s-image').attr('src') || '';
-            const price = parseInt(priceWhole);
-            if (name && price) {
-                results.push({ storeName: 'Amazon', name, price, originalPrice: parseInt(priceOrig) || price, rating, delivery: 'Free, 2-day', deliveryDays: 2, link, image, inStock: true });
-            }
-        });
-        return results;
-    } catch (_) {
-        return null; // Signal to use demo data
+async function fetchFromRapidAPI(query) {
+    if (!process.env.RAPIDAPI_KEY) {
+        console.warn("RapidAPI key not found in env, falling back to demo data");
+        return null;
     }
-}
-
-// ------------------------------------------------------------------
-// Flipkart.com scraper
-// ------------------------------------------------------------------
-async function scrapeFlipkart(query) {
-    const url = `https://www.flipkart.com/search?q=${encodeURIComponent(query)}&otracker=search`;
     try {
-        const { data } = await axios.get(url, { headers: HEADERS, timeout: TIMEOUT });
-        const $ = cheerio.load(data);
-        const results = [];
-        $('._1AtVbE').slice(0, 5).each((_, el) => {
-            const name = $(el).find('._4rR01T, .IRpwTa, .s1Q9rs').first().text().trim();
-            const priceText = $(el).find('._30jeq3, ._1vC4OE').first().text().replace(/[₹,]/g, '').trim();
-            const origText = $(el).find('._3I9_wc').first().text().replace(/[₹,]/g, '').trim();
-            const rating = parseFloat($(el).find('._3LWZlK').first().text()) || 4.0;
-            const link = 'https://www.flipkart.com' + ($(el).find('a._1fQZEK, a.IRpwTa, a.s1Q9rs').attr('href') || '/');
-            const image = $(el).find('img._396cs4, img._2r_T1I').attr('src') || '';
-            const price = parseInt(priceText);
-            if (name && price) {
-                results.push({ storeName: 'Flipkart', name, price, originalPrice: parseInt(origText) || price, rating, delivery: 'Free, 3-day', deliveryDays: 3, link, image, inStock: true });
-            }
+        const { data } = await axios.get('https://real-time-product-search.p.rapidapi.com/product-search', {
+            headers: {
+                'x-rapidapi-host': 'real-time-product-search.p.rapidapi.com',
+                'x-rapidapi-key': process.env.RAPIDAPI_KEY
+            },
+            params: {
+                query: query,
+                country: 'in', // use 'in' for India to match dummy data, or 'us'
+                language: 'en'
+            },
+            timeout: TIMEOUT
         });
-        return results;
-    } catch (_) {
+        
+        // Transform the response to match our ProductSchema
+        // Note: The specific response structure of this API might vary, 
+        // assuming standard array of products or data.products
+        const items = data.data || data.products || data;
+        const results = [];
+        
+        if (Array.isArray(items)) {
+            for (const item of items.slice(0, 10)) {
+                if (item.product_title && item.product_price) {
+                    results.push({
+                        name: item.product_title,
+                        brand: item.product_brand || 'Unknown',
+                        category: item.product_category || 'General',
+                        description: item.product_description || '',
+                        image: item.product_main_image_url || item.product_image || '',
+                        tags: query.split(' '),
+                        stores: [{
+                            storeName: item.offer_store_name || 'Amazon',
+                            price: parseFloat(item.product_price.replace(/[^0-9.]/g, '')),
+                            originalPrice: item.product_original_price ? parseFloat(item.product_original_price.replace(/[^0-9.]/g, '')) : parseFloat(item.product_price.replace(/[^0-9.]/g, '')),
+                            delivery: item.app_sale_price ? 'Sale' : 'Standard',
+                            link: item.product_details_page_link || item.product_link || '',
+                            rating: parseFloat(item.product_rating) || 4.5,
+                            reviewCount: parseInt(item.product_num_reviews) || 0,
+                            inStock: true
+                        }]
+                    });
+                }
+            }
+        }
+        return results.length > 0 ? results : null;
+    } catch (err) {
+        console.error("RapidAPI Error:", err.message);
         return null;
     }
 }
@@ -129,24 +134,15 @@ async function scrapeFlipkart(query) {
 // Main export — search across all platforms
 // ------------------------------------------------------------------
 exports.searchAllPlatforms = async (query) => {
-    const [amazonResults, flipkartResults] = await Promise.allSettled([
-        scrapeAmazon(query),
-        scrapeFlipkart(query),
-    ]);
-
-    const amazon = amazonResults.value;
-    const flipkart = flipkartResults.value;
-
-    // If we got real data from at least one platform, enrich with demo stores for others
+    const rapidApiResults = await fetchFromRapidAPI(query);
     const demoProducts = findDemoProducts(query);
 
-    // Return merged demo products (always reliable) augmented by any live results
-    if ((!amazon || amazon.length === 0) && (!flipkart || flipkart.length === 0)) {
-        // Full demo mode
-        return demoProducts;
+    // If we got real data from the API, use it
+    if (rapidApiResults && rapidApiResults.length > 0) {
+        return rapidApiResults;
     }
 
-    // We have some live data — use it alongside demo products
+    // Full demo mode fallback
     return demoProducts;
 };
 
