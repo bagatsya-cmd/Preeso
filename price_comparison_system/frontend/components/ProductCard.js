@@ -1,145 +1,442 @@
-import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import axios from 'axios';
+import { useRouter } from 'next/router';
 
-const STORE_COLORS = {
-  Amazon: { bg: 'rgba(255,153,0,0.12)', text: '#ff9900', border: 'rgba(255,153,0,0.3)', icon: '🛒' },
-  Flipkart: { bg: 'rgba(40,116,240,0.12)', text: '#2874f0', border: 'rgba(40,116,240,0.3)', icon: '🛍️' },
-  Myntra: { bg: 'rgba(255,63,108,0.12)', text: '#ff3f6c', border: 'rgba(255,63,108,0.3)', icon: '👗' },
-  'Reliance Digital': { bg: 'rgba(225,29,72,0.12)', text: '#e11d48', border: 'rgba(225,29,72,0.3)', icon: '📱' },
+// ── CDN priority order for candidate sorting ──────────────────────────────────
+const CDN_PRIORITY = ['amazon.in', 'm.media-amazon', 'fkimg.com', 'rukminim', 'reliancedigital', 'myntassets', 'myntraassets'];
+
+function cdnScore(url) {
+  if (!url) return -1;
+  const lower = url.toLowerCase();
+  for (let i = 0; i < CDN_PRIORITY.length; i++) {
+    if (lower.includes(CDN_PRIORITY[i])) return CDN_PRIORITY.length - i;
+  }
+  return 0;
+}
+
+/**
+ * Build a deduplicated, priority-sorted list of image URL candidates.
+ * Tries: product.image → product.imageUrl → store images → thumbnails
+ */
+function buildCandidates(product) {
+  const raw = [
+    product.image,
+    product.imageUrl,
+    ...(product.stores || []).map(s => s.image),
+    ...(product.stores || []).map(s => s.thumbnail),
+  ];
+
+  // Deduplicate with Set, filter invalids
+  const seen = new Set();
+  const unique = [];
+  for (const u of raw) {
+    if (!u || typeof u !== 'string') continue;
+    const norm = u.trim().startsWith('//') ? 'https:' + u.trim() : u.trim();
+    if (!norm.startsWith('http')) continue;
+    if (norm.toLowerCase().startsWith('data:')) continue;
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    unique.push(norm);
+  }
+
+  // Sort by CDN priority (highest score first)
+  return unique.sort((a, b) => cdnScore(b) - cdnScore(a));
+}
+
+// ── Platform branding chips — Pricio theme ───────────────────────────────────
+const PLATFORM_CHIPS = {
+  AJIO:    { label: 'AJIO',    bg: 'rgba(228,0,43,0.18)',    color: '#ff4d6a',  border: 'rgba(228,0,43,0.3)'    },
+  Nykaa:   { label: 'NYKAA',  bg: 'rgba(233,30,140,0.18)',  color: '#f472b6',  border: 'rgba(233,30,140,0.3)'  },
+  Amazon:  { label: 'AMZ',    bg: 'rgba(255,153,0,0.15)',   color: '#fb923c',  border: 'rgba(255,153,0,0.3)'   },
+  Flipkart:{ label: 'FK',     bg: 'rgba(40,116,240,0.18)',  color: '#60a5fa',  border: 'rgba(40,116,240,0.3)'  },
+  Myntra:  { label: 'MYNTRA', bg: 'rgba(255,63,108,0.15)',  color: '#fb7185',  border: 'rgba(255,63,108,0.3)'  },
+  'Reliance Digital': { label: 'RD', bg: 'rgba(28,150,197,0.15)', color: '#38bdf8', border: 'rgba(28,150,197,0.3)' },
 };
+
+function getPlatformChip(storeName) {
+  const chip = PLATFORM_CHIPS[storeName];
+  if (!chip) return null;
+  return (
+    <span style={{
+      background: chip.bg, color: chip.color, border: `1px solid ${chip.border}`,
+      fontSize: '0.55rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+      letterSpacing: '0.05em',
+    }}>{chip.label}</span>
+  );
+}
+
 
 function formatPrice(p) {
   return '₹' + Number(p).toLocaleString('en-IN');
 }
 
-export default function ProductCard({ product }) {
-  const [inWishlist, setInWishlist] = useState(false);
-  const [toast, setToast] = useState('');
+/** Pure JSX placeholder — never used as img src, zero onError risk. */
+function ImagePlaceholder() {
+  return (
+    <svg
+      width="80" height="80" viewBox="0 0 80 80"
+      fill="none" xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      style={{ opacity: 0.22 }}
+    >
+      <rect x="4" y="4" width="72" height="72" rx="12" fill="#2a2a2a" stroke="#383838" strokeWidth="1.5"/>
+      <rect x="14" y="14" width="52" height="36" rx="5" fill="#1c1c1c"/>
+      <circle cx="40" cy="32" r="8" fill="#303030"/>
+      <path d="M24 50 Q40 38 56 50" stroke="#353535" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+      <rect x="20" y="62" width="40" height="5" rx="2.5" fill="#2a2a2a"/>
+    </svg>
+  );
+}
 
-  const stores = product.stores || [];
-  const lowestStore = stores.length > 0 ? stores.reduce((a, b) => (a.price < b.price ? a : b)) : null;
-  const highestPrice = stores.length > 0 ? Math.max(...stores.map(s => s.price)) : 0;
-  const savings = lowestStore && lowestStore.originalPrice ? lowestStore.originalPrice - lowestStore.price : 0;
+// ── Max retries per candidate before advancing to next ────────────────────────
+const MAX_RETRIES_PER_CANDIDATE = 2;
+// ── Delay before retrying the same candidate (ms) ────────────────────────────
+const RETRY_DELAY_MS = 250;
+// ── Timeout before giving up on a candidate and advancing (ms) ───────────────
+const LOAD_TIMEOUT_MS = 4000;
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+// Shared wishlist cache for all instances of ProductCard
+let wishlistCache = null;
+let wishlistPromise = null;
+
+const getWishlistCached = async (token) => {
+  if (wishlistCache) return wishlistCache;
+  if (wishlistPromise) return wishlistPromise;
+
+  wishlistPromise = axios.get('/api/wishlist', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  .then(res => {
+    const list = res.data || [];
+    const set = new Set();
+    list.forEach(p => {
+      if (p._id) set.add(p._id.toString());
+      if (p.name) set.add(p.name.trim().toLowerCase());
+    });
+    wishlistCache = set;
+    return set;
+  })
+  .catch(() => {
+    wishlistPromise = null;
+    return new Set();
+  });
+
+  return wishlistPromise;
+};
+
+const ProductCard = memo(function ProductCard({ product, index = 99, inWishlistProp }) {
+  const router = useRouter();
+  const [inWishlist, setInWishlist]     = useState(inWishlistProp || false);
+  const [candidateIdx, setCandidateIdx] = useState(0);   // which URL we're on
+  const [retryCount, setRetryCount]     = useState(0);   // retries for current URL
+  const [imageLoaded, setImageLoaded]   = useState(false);
+
+  useEffect(() => {
+    if (inWishlistProp !== undefined) {
+      setInWishlist(inWishlistProp);
+      return;
+    }
+    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+    if (!token) return;
+
+    getWishlistCached(token).then(favs => {
+      const prodId = product._id ? product._id.toString() : '';
+      const prodName = (product.name || product.baseName || '').trim().toLowerCase();
+      if (favs.has(prodId) || favs.has(prodName)) {
+        setInWishlist(true);
+      }
+    });
+  }, [product._id, product.name, inWishlistProp]);
+
+  const stores      = product.stores || [];
+  const validStores = stores.filter(s => s.price > 0).sort((a, b) => a.price - b.price);
+  const lowestStore = validStores[0] || null;
+
+  // Memoised candidate list — stable across renders
+  const candidates = buildCandidates(product);
+  const currentUrl = candidates[candidateIdx] ?? null;
+
+  // ── 4-second hard timeout per candidate ──────────────────────────────────
+  useEffect(() => {
+    if (!currentUrl || imageLoaded) return;
+
+    const timer = setTimeout(() => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[ProductCard] Timeout (${LOAD_TIMEOUT_MS}ms): ${currentUrl}`);
+      }
+      advanceCandidate();
+    }, LOAD_TIMEOUT_MS);
+
+    return () => clearTimeout(timer);
+  }, [currentUrl, imageLoaded, candidateIdx]);
+
+  // ── Advance to next candidate (or exhaust all) ────────────────────────────
+  const advanceCandidate = useCallback(() => {
+    setRetryCount(0);
+    setImageLoaded(false);
+    setCandidateIdx(prev => prev + 1);
+  }, []);
+
+  // ── onError: retry same candidate up to MAX_RETRIES, then advance ─────────
+  const handleError = useCallback(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[ProductCard] Image failed (retry ${retryCount}/${MAX_RETRIES_PER_CANDIDATE}):`, currentUrl);
+    }
+
+    if (retryCount < MAX_RETRIES_PER_CANDIDATE) {
+      // Retry same candidate after a short delay
+      const t = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        // Force remount by toggling a key via imageLoaded trick — handled by key={} below
+        setImageLoaded(false);
+      }, RETRY_DELAY_MS);
+      return () => clearTimeout(t);
+    } else {
+      // Exhausted retries — move to next candidate
+      setTimeout(advanceCandidate, RETRY_DELAY_MS);
+    }
+  }, [retryCount, currentUrl, advanceCandidate]);
+
+  const handleLoad = useCallback(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[ProductCard] ✅ Loaded:`, currentUrl);
+    }
+    setImageLoaded(true);
+  }, [currentUrl]);
 
   const toggleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const token = localStorage.getItem('comparex_token');
-    if (!token) { showToast('Please login to save to wishlist'); return; }
+    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+    if (!token) {
+      alert("Please login or sign up to add products to your wishlist.");
+      router.push('/login');
+      return;
+    }
     try {
-      await axios.post(`/api/wishlist/${product._id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      setInWishlist(p => !p);
-      showToast(inWishlist ? 'Removed from wishlist' : 'Added to wishlist ❤️');
-    } catch { showToast('Error updating wishlist'); }
+      const res = await axios.post(`/api/wishlist/${product._id}`, { product }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const isAdded = res.data.action === 'added';
+      setInWishlist(isAdded);
+
+      // Update the local cache set
+      if (wishlistCache) {
+        const prodId = product._id ? product._id.toString() : '';
+        const prodName = (product.name || product.baseName || '').trim().toLowerCase();
+        if (isAdded) {
+          if (prodId) wishlistCache.add(prodId);
+          if (prodName) wishlistCache.add(prodName);
+          if (res.data.productId) wishlistCache.add(res.data.productId.toString());
+        } else {
+          if (prodId) wishlistCache.delete(prodId);
+          if (prodName) wishlistCache.delete(prodName);
+          if (res.data.productId) wishlistCache.delete(res.data.productId.toString());
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle wishlist:', err);
+    }
   };
 
+  const getDeliveryText = (name) => {
+    if (name === 'Amazon')   return 'Tomorrow';
+    if (name === 'Flipkart') return '2 Days';
+    if (name === 'AJIO')     return '3-5 Days';
+    if (name === 'Nykaa')    return '3-5 Days';
+    return '3-4 Days';
+  };
+
+  // Dev-mode source debugging
+  if (process.env.NODE_ENV !== 'production' && product?.stores?.[0]) {
+    console.log('[UI] Rendering source:', product.stores[0].storeName, '| title:', product.baseName || product.name);
+  }
+
   return (
-    <div className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', cursor: 'pointer', overflow: 'visible' }}>
-      {toast && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, padding: '12px 18px', borderRadius: 10, background: 'rgba(22,22,31,0.97)', border: '1px solid rgba(99,102,241,0.3)', color: '#d1d5db', fontSize: '0.875rem', fontWeight: 500, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)' }}>
-          {toast}
-        </div>
+    <div
+      className="card product-card-hover fade-in"
+      onClick={() => lowestStore && window.open(
+        lowestStore.link || lowestStore.url, '_blank', 'noopener,noreferrer'
       )}
-
-      {/* Wishlist button */}
-      <button onClick={toggleWishlist} id={`wishlist-${product._id}`} style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, background: 'rgba(10,10,15,0.8)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', backdropFilter: 'blur(10px)' }}>
-        {inWishlist ? '❤️' : '🤍'}
-      </button>
-
-      {/* Product image */}
-      <Link href={`/product/${product._id}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <div style={{ position: 'relative', height: 200, background: 'rgba(255,255,255,0.03)', overflow: 'hidden', borderRadius: '16px 16px 0 0' }}>
-          <img
-            src={product.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'}
-            alt={product.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
-            onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
-            onMouseLeave={e => e.target.style.transform = 'scale(1)'}
-            onError={e => { e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'; }}
-          />
-          {/* Category badge */}
-          {product.category && (
-            <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(10,10,15,0.8)', backdropFilter: 'blur(10px)', padding: '4px 10px', borderRadius: 20, fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, border: '1px solid rgba(255,255,255,0.08)' }}>
-              {product.category}
-            </div>
+      style={{
+        position: 'relative', display: 'flex', flexDirection: 'column',
+        cursor: 'pointer',
+        border: '1px solid rgba(37,99,235,0.15)',
+        borderRadius: 14, overflow: 'hidden',
+        background: 'linear-gradient(160deg, #0f1a2e 0%, #0d1426 100%)',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+      }}
+    >
+      {/* ── Image container: strict 1:1, white background, no layout shift ── */}
+      <div style={{ position: 'relative' }}>
+        <div style={{
+          position: 'relative',
+          aspectRatio: '1 / 1',
+          background: '#f8faff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+          borderRadius: '14px 14px 0 0',
+        }}>
+          {/* Shimmer skeleton shown while image is loading */}
+          {currentUrl && !imageLoaded && (
+            <div
+              className="skeleton"
+              style={{ position: 'absolute', inset: 0, borderRadius: 0, zIndex: 1 }}
+            />
           )}
-          {/* Best deal badge */}
-          {lowestStore && lowestStore.discount >= 15 && (
-            <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'linear-gradient(135deg, #22c55e, #16a34a)', padding: '4px 10px', borderRadius: 20, fontSize: '0.7rem', color: 'white', fontWeight: 700 }}>
-              🔥 {lowestStore.discount}% OFF
-            </div>
+
+          {currentUrl ? (
+            <img
+              /* key forces remount on each retry/candidate change */
+              key={`${candidateIdx}-${retryCount}`}
+              src={currentUrl}
+              alt={product.name || product.baseName || 'Product'}
+              loading={index < 4 ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchpriority={index < 4 ? 'high' : 'auto'}
+              referrerPolicy="no-referrer"
+              style={{
+                position: 'relative', zIndex: 2,
+                maxWidth: '85%', maxHeight: '85%',
+                objectFit: 'contain',
+                display: 'block',
+                opacity: imageLoaded ? 1 : 0,
+                transition: 'opacity 0.3s ease',
+              }}
+              onLoad={handleLoad}
+              onMouseEnter={e => e.target.style.transform = 'scale(1.04)'}
+              onMouseLeave={e => e.target.style.transform = 'scale(1)'}
+              onError={handleError}
+            />
+          ) : (
+            // All candidates exhausted — show pure JSX placeholder
+            <ImagePlaceholder />
+          )}
+        </div>
+
+        {/* Discount Badges */}
+        <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', flexDirection: 'column', gap: 5, zIndex: 3 }}>
+          {lowestStore?.discount >= 10 && (
+            <span style={{
+              background: 'var(--success)', color: '#fff',
+              padding: '3px 8px', borderRadius: 4,
+              fontSize: '0.68rem', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.05em'
+            }}>
+              {lowestStore.discount}% OFF
+            </span>
+          )}
+          {lowestStore?.discount >= 20 && (
+            <span style={{
+              background: 'var(--brand-accent)', color: '#fff',
+              padding: '3px 8px', borderRadius: 4, fontSize: '0.68rem', fontWeight: 700
+            }}>
+              Lowest Today
+            </span>
           )}
         </div>
 
-        <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Brand */}
-          {product.brand && <span style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{product.brand}</span>}
-
-          {/* Name */}
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f1f1f5', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {product.name}
-          </h3>
-
-          {/* Best price */}
-          {lowestStore && (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: '#22c55e' }}>{formatPrice(lowestStore.price)}</span>
-              {lowestStore.originalPrice > lowestStore.price && (
-                <span style={{ fontSize: '0.85rem', color: '#6b7280', textDecoration: 'line-through' }}>{formatPrice(lowestStore.originalPrice)}</span>
-              )}
-            </div>
-          )}
-
-          {savings > 0 && (
-            <div style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600 }}>You save {formatPrice(savings)} on {lowestStore?.storeName}</div>
-          )}
-
-          {/* Platform price comparison */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {stores.slice(0, 3).map((store, i) => {
-              const colors = STORE_COLORS[store.storeName] || { bg: 'rgba(255,255,255,0.05)', text: '#9ca3af', border: 'rgba(255,255,255,0.1)', icon: '🏪' };
-              const isBest = lowestStore && store.storeName === lowestStore.storeName;
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderRadius: 8, background: isBest ? 'rgba(34,197,94,0.08)' : colors.bg, border: `1px solid ${isBest ? 'rgba(34,197,94,0.25)' : colors.border}`, transition: 'all 0.15s' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: '0.8rem' }}>{colors.icon}</span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isBest ? '#22c55e' : colors.text }}>{store.storeName}</span>
-                    {isBest && <span style={{ fontSize: '0.65rem', background: 'rgba(34,197,94,0.2)', color: '#22c55e', padding: '1px 6px', borderRadius: 10, fontWeight: 700 }}>BEST</span>}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {store.discount > 0 && <span style={{ fontSize: '0.7rem', color: '#22c55e', fontWeight: 600 }}>-{store.discount}%</span>}
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#f1f1f5' }}>{formatPrice(store.price)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Bottom: rating + delivery */}
-          {lowestStore && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>{'★'.repeat(Math.round(lowestStore.rating || 4))}</span>
-                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{lowestStore.rating?.toFixed(1)} ({(lowestStore.reviewCount || 0).toLocaleString()})</span>
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>🚚 {lowestStore.delivery}</span>
-            </div>
-          )}
-        </div>
-      </Link>
-
-      {/* Compare button */}
-      <div style={{ padding: '0 20px 20px' }}>
-        <Link href={`/product/${product._id}`} style={{ display: 'block', textAlign: 'center', padding: '10px', borderRadius: 10, background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))', border: '1px solid rgba(99,102,241,0.25)', color: '#a5b4fc', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600, transition: 'all 0.2s' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.25)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))'}
+        {/* Wishlist */}
+        <button
+          onClick={toggleWishlist}
+          aria-label="Toggle wishlist"
+          style={{
+            position: 'absolute', top: 10, right: 10, zIndex: 3,
+            background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(4px)',
+            borderRadius: '50%', width: 32, height: 32, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'var(--transition)'
+          }}
         >
-          ⚡ Compare All Prices →
-        </Link>
+          <svg width="14" height="14" viewBox="0 0 24 24"
+            fill={inWishlist ? 'var(--error)' : 'none'}
+            stroke={inWishlist ? 'var(--error)' : '#fff'}
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* ── Content ── */}
+      <div style={{
+        padding: '14px 16px', display: 'flex', flexDirection: 'column',
+        flex: 1, borderTop: '1px solid var(--border-color)'
+      }}>
+        <h3 style={{
+          fontSize: '0.92rem', fontWeight: 500, color: 'var(--text-primary)',
+          lineHeight: 1.35, marginBottom: 10,
+          display: '-webkit-box', WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical', overflow: 'hidden'
+        }}>
+          {product.name || product.baseName}
+        </h3>
+
+        <div style={{ marginTop: 'auto' }}>
+          {lowestStore && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: '1.28rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {formatPrice(lowestStore.price)}
+                </span>
+                {lowestStore.originalPrice > lowestStore.price && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                    {formatPrice(lowestStore.originalPrice)}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--success)', fontWeight: 500, marginBottom: 12 }}>
+                Free delivery {getDeliveryText(lowestStore.storeName)}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Platform price rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {validStores.slice(0, 3).map((store, i) => {
+            const isBest = lowestStore?.storeName === store.storeName;
+            return (
+              <a
+                key={i}
+                href={store.link || store.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '7px 10px', borderRadius: 8, textDecoration: 'none',
+                  background: isBest ? 'rgba(37,99,235,0.12)' : 'transparent',
+                  border: isBest ? '1px solid rgba(37,99,235,0.3)' : '1px solid transparent',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => { if (!isBest) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                onMouseLeave={e => { if (!isBest) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem', fontFamily: 'Poppins,Inter,sans-serif' }}>
+                    {store.storeName}
+                  </span>
+                  {isBest && (
+                    <span style={{
+                      fontSize: '0.6rem',
+                      background: 'linear-gradient(135deg,#2563eb,#1e40af)',
+                      color: '#fff', padding: '2px 6px', borderRadius: 4, fontWeight: 700,
+                      letterSpacing: '0.04em', boxShadow: '0 2px 6px rgba(37,99,235,0.4)',
+                    }}>BEST</span>
+                  )}
+                </div>
+                <span style={{ fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {formatPrice(store.price)}
+                </span>
+              </a>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
-}
+});
+
+export default ProductCard;

@@ -1,245 +1,747 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import axios from 'axios';
 import Head from 'next/head';
 import Navbar from '../components/Navbar';
 import SearchBar from '../components/SearchBar';
 import ProductCard from '../components/ProductCard';
 
-const CATEGORIES = ['All', 'Smartphones', 'Laptops', 'Audio', 'Televisions', 'Footwear', 'Clothing', 'Appliances'];
-const PLATFORM_LOGOS = [
-  { name: 'Amazon', color: '#ff9900', icon: '🛒' },
-  { name: 'Flipkart', color: '#2874f0', icon: '🛍️' },
-  { name: 'Myntra', color: '#ff3f6c', icon: '👗' },
-  { name: 'Reliance Digital', color: '#e11d48', icon: '📱' },
-];
+/* ── Pricio inline SVG icon (used in hero badge) ─────────────────────────── */
+function PricioIcon({ size = 20 }) {
+  return (
+    <svg viewBox="0 0 44 44" width={size} height={size} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="44" height="44" rx="10" fill="url(#hiBg)" />
+      <rect x="4" y="16" width="24" height="26" rx="5" fill="url(#hiBag)" />
+      <path d="M9 16c0-4.418 3.134-7 7-7s7 2.582 7 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none" strokeOpacity="0.9" />
+      <rect x="9" y="23" width="14" height="11" rx="2" fill="white" fillOpacity="0.18" />
+      <defs>
+        <linearGradient id="hiBg" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1e40af" />
+          <stop offset="100%" stopColor="#1e3a8a" />
+        </linearGradient>
+        <linearGradient id="hiBag" x1="4" y1="16" x2="28" y2="42" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#60a5fa" />
+          <stop offset="100%" stopColor="#2563eb" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
 
-export default function Home() {
-  const [products, setProducts] = useState([]);
-  const [trending, setTrending] = useState([]);
-  const [recommendations, setRecommendations] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [category, setCategory] = useState('All');
-  const [sortBy, setSortBy] = useState('bestPrice');
-  const [error, setError] = useState('');
-
-  // Load trending and recommendations on mount
-  useEffect(() => {
-    axios.get('/api/products/trending').then(r => setTrending(r.data)).catch(() => { });
-
-    const token = localStorage.getItem('comparex_token');
-    if (token) {
-      axios.get('/api/products/user/recommendations', { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => setRecommendations(r.data)).catch(() => { });
-    }
-  }, []);
-
-  const handleSearch = async (query) => {
-    setLoading(true); setError('');
-    try {
-      const res = await axios.get(`/api/products/search?query=${encodeURIComponent(query)}`);
-      setProducts(res.data);
-      setSearched(true);
-
-      const token = localStorage.getItem('comparex_token');
-      if (token) {
-        axios.post('/api/products/history/search', { query }, { headers: { Authorization: `Bearer ${token}` } }).catch(()=>{});
-      }
-    } catch {
-      setError('Failed to fetch results. Make sure the backend is running.');
-    } finally { setLoading(false); }
+/* ── Additive merge helper (Phase 11 — preserved) ───────────────────────── */
+function mergeProductsList(prev, incoming) {
+  const map = new Map();
+  const getProductKey = (product) => {
+    if (product._id) return product._id;
+    if (product.bestDeal?.url) return product.bestDeal.url;
+    if (product.stores?.[0]?.url) return product.stores[0].url;
+    const title    = product.title || product.baseName || product.name || '';
+    const platform = product.platform || product.stores?.[0]?.storeName || '';
+    return `${title.trim()}-${platform.trim()}`.toLowerCase();
   };
 
-  const displayProducts = searched ? products : trending;
-  const filtered = category === 'All' ? displayProducts : displayProducts.filter(p => p.category === category);
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'bestPrice') return (a.lowestPrice || 0) - (b.lowestPrice || 0);
-    if (sortBy === 'highPrice') return (b.lowestPrice || 0) - (a.lowestPrice || 0);
-    if (sortBy === 'discount') {
-      const aDisc = a.stores?.[0]?.discount || 0;
-      const bDisc = b.stores?.[0]?.discount || 0;
-      return bDisc - aDisc;
-    }
-    return 0;
+  prev.forEach(product => {
+    const key = getProductKey(product);
+    if (key) map.set(key, product);
   });
+
+  incoming.forEach(product => {
+    const key = getProductKey(product);
+    if (!key) return;
+    if (map.has(key)) {
+      const existing     = map.get(key);
+      const mergedStores = [...(existing.stores || [])];
+      (product.stores || []).forEach(newStore => {
+        const idx = mergedStores.findIndex(s => s.storeName === newStore.storeName);
+        if (idx >= 0) {
+          if (newStore.price > 0 && (mergedStores[idx].price <= 0 || newStore.price < mergedStores[idx].price)) {
+            mergedStores[idx] = newStore;
+          }
+        } else {
+          mergedStores.push(newStore);
+        }
+      });
+      map.set(key, {
+        ...existing, ...product, stores: mergedStores,
+        lowestPrice: mergedStores.length > 0
+          ? Math.min(...mergedStores.map(s => s.price).filter(p => p > 0))
+          : existing.lowestPrice,
+      });
+    } else {
+      map.set(key, product);
+    }
+  });
+
+  return Array.from(map.values());
+}
+
+/* ── Platform display config ─────────────────────────────────────────────── */
+const PLATFORM_CONFIG = {
+  Amazon:           { color: '#ff9900', emoji: '🛒' },
+  Flipkart:         { color: '#2874f0', emoji: '🏪' },
+  Myntra:           { color: '#ff3f6c', emoji: '👗' },
+  'Reliance Digital': { color: '#1c96c5', emoji: '📱' },
+  AJIO:             { color: '#e4002b', emoji: '🎁' },
+  Nykaa:            { color: '#e91e8c', emoji: '💄' },
+};
+
+export default function Home() {
+  const [products, setProducts]       = useState([]);
+  const [trending, setTrending]       = useState([]);
+  const [searchState, setSearchState] = useState('idle');
+  const eventSourceRef   = useRef(null);
+  const lastSearchQueryRef = useRef(null);
+  const [searched, setSearched]       = useState(false);
+  const [streamStatus, setStreamStatus] = useState({});
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [liveCount, setLiveCount]     = useState(0);
+  const router = useRouter();
+
+  // Filters
+  const [sortBy, setSortBy]               = useState('bestPrice');
+  const [platformFilter, setPlatformFilter] = useState('All');
+  const [priceRange, setPriceRange]       = useState('All');
+
+  useEffect(() => {
+    console.log('[COMPONENT MOUNTED]');
+    return () => console.log('[COMPONENT UNMOUNTED]');
+  }, []);
+
+  useEffect(() => {
+    if (router.isReady && router.query.q && !searched) {
+      handleSearch(router.query.q, true);
+    }
+  }, [router.isReady, router.query.q]);
+
+  useEffect(() => {
+    if (router.isReady && router.pathname === '/' && !router.query.q && searched) {
+      console.log('[RESET TRIGGERED] pathname change or query reset');
+      setProducts([]);
+      setSearchState('idle');
+      setSearched(false);
+      setStreamStatus({});
+      setLiveCount(0);
+      setPlatformFilter('All');
+      setPriceRange('All');
+      setSortBy('bestPrice');
+
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    }
+  }, [router.isReady, router.pathname, router.query.q, searched]);
+
+  useEffect(() => {
+    axios.get('/api/products/trending').then(r => setTrending(r.data)).catch(() => {});
+  }, []);
+
+  const initStream = (query, isReconnect = false) => {
+    if (eventSourceRef.current) { eventSourceRef.current.close(); eventSourceRef.current = null; }
+
+    setSearchState(isReconnect ? 'reconnecting' : 'connecting');
+    if (!isReconnect) {
+      console.log('[RESET TRIGGERED] initStream fresh search starting');
+      setProducts([]);
+      setLiveCount(0);
+    }
+
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
+    const eventSource = new EventSource(`${apiBase}/api/stream/search?q=${encodeURIComponent(query)}`);
+    eventSourceRef.current = eventSource;
+
+    eventSource.onopen = () => setSearchState('streaming');
+
+    eventSource.onmessage = (event) => {
+      console.log('[RAW EVENT]', event.data);
+      if (event.data === 'ping') return;
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[PARSED DATA]', data);
+        console.log('[EVENT TYPE]', data.type);
+        console.log('[EVENT PRODUCTS]', data.products);
+        console.log('[EVENT PRODUCTS LENGTH]', data.products?.length);
+
+        switch (data.type) {
+          case 'scraper-status':
+            setStreamStatus(prev => ({ ...prev, [data.store]: data.status }));
+            break;
+
+          case 'partial-results':
+            setProducts(prev => {
+              console.log('[PREV STATE LENGTH]', prev.length);
+              const incoming = Array.isArray(data.products) ? data.products : [];
+              console.log('[INCOMING LENGTH]', incoming.length);
+              const merged = mergeProductsList(prev, incoming);
+              console.log('[MERGED LENGTH]', merged.length);
+              console.log('[MERGED DATA]', merged);
+              setLiveCount(merged.length);
+              return merged;
+            });
+            break;
+
+          case 'scraper-success':
+            setStreamStatus(prev => ({ ...prev, [data.store]: `✅ ${data.resultsCount} results (${data.elapsed}s)` }));
+            break;
+
+          case 'matching-status':
+            setStreamStatus(prev => ({ ...prev, System: data.progress }));
+            break;
+
+          case 'completed':
+          case 'complete':
+            console.log('[FRONTEND] stream complete');
+            setSearchState('completed');
+            setStreamStatus({ System: `Found ${data.totalUnique || 0} products` });
+            setLiveCount(data.totalUnique || 0);
+            eventSource.close();
+            break;
+
+          case 'error':
+            setSearchState('error');
+            setStreamStatus({ System: data.message });
+            eventSource.close();
+            break;
+        }
+      } catch (err) {
+        console.error('SSE parse error:', err);
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      setSearchState('reconnecting');
+      setTimeout(() => {
+        if (searchState !== 'completed' && searchState !== 'error') initStream(query, true);
+      }, 2000);
+    };
+  };
+
+  const handleSearch = (query, skipUrlUpdate = false) => {
+    if (!query || !query.trim()) return;
+    const cleanQuery = query.trim();
+    if (lastSearchQueryRef.current === cleanQuery && searchState !== 'idle') return;
+    
+    console.log('[SEARCH START]', cleanQuery);
+    lastSearchQueryRef.current = cleanQuery;
+    setSearched(true);
+    initStream(cleanQuery, false);
+    setIsMobileDrawerOpen(false);
+    if (!skipUrlUpdate) router.push({ query: { ...router.query, q: cleanQuery } }, undefined, { shallow: true });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) eventSourceRef.current.close();
+    };
+  }, []);
+
+  const isSearchActive  = ['connecting','streaming','reconnecting'].includes(searchState);
+  const isLoading       = isSearchActive && products.length === 0;
+  const displayProducts = searched ? products : trending;
+
+  useEffect(() => {
+    console.log('[DEBUG] products state updated', products.length);
+  }, [products]);
+
+  useEffect(() => {
+    if (!isLoading && searched && products.length > 0) {
+      console.log('[FRONTEND] loading false');
+    }
+  }, [isLoading, searched, products.length]);
+
+  /* ── Filtering ── */
+  const priceFiltered = useMemo(() => {
+    if (priceRange === 'All') return displayProducts;
+    return displayProducts.filter(p => {
+        if (!p.stores) return false;
+        const validStores = p.stores.filter(s => s.price > 0).sort((a,b) => a.price - b.price);
+        if (!validStores.length) return false;
+        const minPrice = validStores[0].price;
+        if (priceRange === 'Under ₹10,000') return minPrice < 10000;
+        if (priceRange === '₹10,000 - ₹30,000') return minPrice >= 10000 && minPrice <= 30000;
+        if (priceRange === 'Over ₹30,000') return minPrice > 30000;
+        return true;
+    });
+  }, [displayProducts, priceRange]);
+
+  const filtered = useMemo(() => {
+    if (platformFilter === 'All') return priceFiltered;
+    return priceFiltered.filter(p => p.stores?.some(s => s.storeName === platformFilter && s.price > 0));
+  }, [priceFiltered, platformFilter]);
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const getMin = p => { const v = (p.stores||[]).filter(s=>s.price>0); return v.length ? Math.min(...v.map(s=>s.price)) : 99999999; };
+      const getMaxDisc = p => Math.max(...(p.stores||[]).map(s=>s.discount||0));
+      if (sortBy === 'bestPrice') return getMin(a) - getMin(b);
+      if (sortBy === 'highPrice') return getMin(b) - getMin(a);
+      if (sortBy === 'discount')  return getMaxDisc(b) - getMaxDisc(a);
+      return 0;
+    });
+  }, [filtered, sortBy]);
+
+  const storeCounts = useMemo(() => {
+    const counts = { All: priceFiltered.length };
+    ['Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra'].forEach(plat => {
+      counts[plat] = priceFiltered.filter(p => p.stores?.some(s => s.storeName === plat && s.price > 0)).length;
+    });
+    return counts;
+  }, [priceFiltered]);
+
+  /* ── Filter sidebar content ── */
+  const FilterContent = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+      {/* Sort */}
+      <div>
+        <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-accent)', marginBottom: 14, fontWeight: 600 }}>
+          Sort By
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {[
+            { value: 'bestPrice', label: 'Lowest Price' },
+            { value: 'highPrice', label: 'Highest Price' },
+            { value: 'discount',  label: 'Biggest Discount' },
+          ].map(opt => (
+            <button key={opt.value} onClick={() => setSortBy(opt.value)} style={{
+              textAlign: 'left', padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: sortBy === opt.value ? 'rgba(37,99,235,0.15)' : 'transparent',
+              color: sortBy === opt.value ? 'var(--brand-electric)' : 'var(--text-secondary)',
+              fontWeight: sortBy === opt.value ? 600 : 400, fontSize: '0.875rem',
+              fontFamily: 'Poppins,Inter,sans-serif',
+              transition: 'var(--transition-fast)',
+              borderLeft: sortBy === opt.value ? '2px solid var(--brand-accent)' : '2px solid transparent',
+            }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Platform */}
+      <div>
+        <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-accent)', marginBottom: 14, fontWeight: 600 }}>
+          Platform
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {['All', 'Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra'].map(plat => {
+            const cfg = PLATFORM_CONFIG[plat];
+            const cnt = storeCounts[plat] || 0;
+            const active = platformFilter === plat;
+            return (
+              <button key={plat} onClick={() => setPlatformFilter(plat)} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: active ? 'rgba(37,99,235,0.12)' : 'transparent',
+                color: active ? '#fff' : 'var(--text-secondary)',
+                fontFamily: 'Poppins,Inter,sans-serif', fontSize: '0.875rem',
+                fontWeight: active ? 600 : 400, transition: 'var(--transition-fast)',
+                borderLeft: active ? `2px solid ${cfg?.color || 'var(--brand-accent)'}` : '2px solid transparent',
+              }}
+              onMouseEnter={e => !active && (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+              onMouseLeave={e => !active && (e.currentTarget.style.background = 'transparent')}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {cfg?.emoji && <span style={{ fontSize: '0.9rem' }}>{cfg.emoji}</span>}
+                  {plat === 'All' ? '🌐 All Platforms' : plat}
+                </span>
+                <span style={{
+                  fontSize: '0.72rem', fontWeight: 600, padding: '2px 7px', borderRadius: 10,
+                  background: active ? (cfg?.color || 'var(--brand-accent)') + '30' : 'rgba(255,255,255,0.07)',
+                  color: active ? (cfg?.color || 'var(--brand-electric)') : 'var(--text-muted)',
+                }}>
+                  {cnt}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Price Range */}
+      <div>
+        <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-accent)', marginBottom: 14, fontWeight: 600 }}>
+          Price Range
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {['All', 'Under ₹10,000', '₹10,000 - ₹30,000', 'Over ₹30,000'].map(range => (
+            <button key={range} onClick={() => setPriceRange(range)} style={{
+              textAlign: 'left', padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: priceRange === range ? 'rgba(37,99,235,0.15)' : 'transparent',
+              color: priceRange === range ? 'var(--brand-electric)' : 'var(--text-secondary)',
+              fontWeight: priceRange === range ? 600 : 400, fontSize: '0.875rem',
+              fontFamily: 'Poppins,Inter,sans-serif', transition: 'var(--transition-fast)',
+              borderLeft: priceRange === range ? '2px solid var(--brand-accent)' : '2px solid transparent',
+            }}>
+              {range}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ── Hero categories ── */
+  const electronicsCategories = ['iPhone 15', 'Samsung S25', 'MacBook Air', 'Headphones', 'Smartwatches'];
+  const fashionCategories     = ["Women's Kurtis", 'Handbags', 'Sneakers', 'Makeup', 'Skincare', 'Sarees'];
 
   return (
     <>
       <Head>
-        <title>CompareX — Compare Prices from Amazon, Flipkart, Myntra & More</title>
-        <meta name="description" content="CompareX helps you find the best prices across Amazon, Flipkart, Myntra, and Reliance Digital. Track prices, set alerts, save money." />
+        <title>Pricio — Smart Prices. Smarter Shopping.</title>
+        <meta name="description" content="Pricio compares prices across Amazon, Flipkart, Myntra, AJIO, Nykaa and more — find the best deals in real time." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
+        <meta property="og:title" content="Pricio — Smart Prices. Smarter Shopping." />
+        <meta property="og:description" content="Compare product prices across all major Indian e-commerce platforms instantly." />
+        <link rel="icon" href="/favicon.png" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <style>{`
+          .desktop-only { display: block; }
+          .mobile-only  { display: none; }
+          .mobile-bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(8,14,31,0.96); backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(37,99,235,0.15);
+            padding: 12px 16px; z-index: 100; display: none;
+            box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
+          }
+          .mobile-drawer {
+            position: fixed; bottom: 0; left: 0; right: 0; top: auto;
+            background: var(--bg-secondary);
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
+            z-index: 200; max-height: 85vh; overflow-y: auto; padding: 24px;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+            box-shadow: 0 -16px 48px rgba(0,0,0,0.6);
+            border: 1px solid rgba(37,99,235,0.15);
+          }
+          .mobile-drawer.open { transform: translateY(0); }
+          .mobile-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            z-index: 150; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+          }
+          .mobile-overlay.open { opacity: 1; pointer-events: auto; }
+
+          .hero-bg-grid {
+            background-image: linear-gradient(rgba(37,99,235,0.06) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(37,99,235,0.06) 1px, transparent 1px);
+            background-size: 48px 48px;
+          }
+
+          @media (max-width: 768px) {
+            .desktop-only  { display: none !important; }
+            .mobile-only   { display: block !important; }
+            .mobile-bottom-bar { display: flex; align-items: center; gap: 12px; }
+            .content-area  { padding-bottom: 80px !important; }
+            .desktop-nav-pill { display: none !important; }
+          }
+
+          @keyframes floatBadge {
+            0%,100% { transform: translateY(0); }
+            50%      { transform: translateY(-4px); }
+          }
+
+          .platform-pill:hover {
+            background: rgba(37,99,235,0.15) !important;
+            border-color: rgba(37,99,235,0.4) !important;
+            transform: translateY(-2px);
+          }
+
+          .status-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px;
+            background: rgba(15,26,46,0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 20px; font-size: 0.72rem;
+            color: var(--text-secondary);
+            backdrop-filter: blur(8px);
+          }
+
+          .sidebar-panel {
+            background: rgba(15,26,46,0.7);
+            border: 1px solid rgba(37,99,235,0.12);
+            border-radius: 16px;
+            padding: 24px 20px;
+            backdrop-filter: blur(12px);
+          }
+        `}</style>
       </Head>
 
       <Navbar />
+      <div style={{ height: 66 }} />
 
-      {/* ── Hero Section ── */}
-      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', padding: '120px 24px 80px' }}>
-        {/* Background orbs */}
-        <div style={{ position: 'absolute', top: '10%', left: '10%', width: 600, height: 600, background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '5%', right: '5%', width: 500, height: 500, background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '15%', width: 300, height: 300, background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+      {/* ── Background orbs (fixed) ── */}
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
 
-        <div style={{ maxWidth: 860, textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          {/* Tag */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 99, padding: '6px 16px', marginBottom: 32, fontSize: '0.8rem', fontWeight: 600, color: '#a5b4fc' }}>
-            <span>⚡</span> India's Smartest Price Comparison Engine
-          </div>
-
-          <h1 style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', fontWeight: 900, fontFamily: 'Outfit, sans-serif', lineHeight: 1.1, marginBottom: 24 }}>
-            Compare Prices.<br />
-            <span style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Save More.</span>
-          </h1>
-
-          <p style={{ fontSize: '1.15rem', color: '#9ca3af', maxWidth: 560, margin: '0 auto 48px', lineHeight: 1.7 }}>
-            Instantly compare prices from Amazon, Flipkart, Myntra & Reliance Digital. Set price alerts and never overpay again.
-          </p>
-
-          <SearchBar onSearch={handleSearch} loading={loading} />
-
-          {/* Platform badges */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
-            {PLATFORM_LOGOS.map(p => (
-              <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 99, fontSize: '0.78rem', color: '#9ca3af' }}>
-                <span>{p.icon}</span> {p.name}
-              </div>
-            ))}
-          </div>
-
-          {/* Stats */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginTop: 48, flexWrap: 'wrap' }}>
-            {[['10M+', 'Products Tracked'], ['₹2.4Cr', 'Saved by Users'], ['4', 'Platforms']].map(([val, label]) => (
-              <div key={label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', background: 'linear-gradient(135deg, #6366f1, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{val}</div>
-                <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 4 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Error ── */}
-      {error && (
-        <div style={{ maxWidth: 700, margin: '0 auto 32px', padding: '14px 20px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: '#ef4444', textAlign: 'center', fontSize: '0.875rem' }}>
-          {error}
-        </div>
-      )}
-
-      {/* ── Products Section ── */}
-      <section style={{ padding: '0 24px 80px' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-
-          {/* Section Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <h2 style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif' }}>
-                {searched ? '🔍 Search Results' : '🔥 Trending Products'}
-              </h2>
-              <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: 4 }}>
-                {sorted.length} products found across all platforms
-              </p>
-            </div>
-            {/* Sort */}
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, color: '#d1d5db', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', outline: 'none', cursor: 'pointer' }}>
-              <option value="bestPrice">Sort: Best Price</option>
-              <option value="highPrice">Sort: High to Low</option>
-              <option value="discount">Sort: Biggest Discount</option>
-            </select>
-          </div>
-
-          {/* Categories */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 32, overflowX: 'auto', paddingBottom: 8, flexWrap: 'wrap' }}>
-            {CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => setCategory(cat)} style={{ padding: '8px 18px', borderRadius: 99, border: '1px solid', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Inter, sans-serif', transition: 'all 0.2s', background: category === cat ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)', borderColor: category === cat ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)', color: category === cat ? '#a5b4fc' : '#9ca3af' }}>
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Loading skeleton */}
-          {loading && (
-            <div className="products-grid">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="card" style={{ height: 480 }}>
-                  <div className="skeleton" style={{ height: 200 }} />
-                  <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div className="skeleton" style={{ height: 14, width: '40%', borderRadius: 4 }} />
-                    <div className="skeleton" style={{ height: 18, borderRadius: 4 }} />
-                    <div className="skeleton" style={{ height: 18, width: '70%', borderRadius: 4 }} />
-                    <div className="skeleton" style={{ height: 30, width: '50%', borderRadius: 4 }} />
-                    {[1, 2, 3].map(j => <div key={j} className="skeleton" style={{ height: 32, borderRadius: 8 }} />)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Product grid */}
-          {!loading && sorted.length > 0 && (
-            <div className="products-grid">
-              {sorted.map(p => <ProductCard key={p._id} product={p} />)}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!loading && sorted.length === 0 && !error && (
-            <div style={{ textAlign: 'center', padding: '80px 0', color: '#6b7280' }}>
-              <div style={{ fontSize: '4rem', marginBottom: 16 }}>🔍</div>
-              <h3 style={{ fontSize: '1.3rem', color: '#9ca3af', marginBottom: 8 }}>Start searching to compare prices</h3>
-              <p style={{ fontSize: '0.875rem' }}>Try searching for "iPhone", "Samsung", "headphones" or any product name</p>
-            </div>
-          )}
-
-          {/* Recommendations (Only if not searched) */}
-          {!searched && recommendations.length > 0 && (
-            <div style={{ marginTop: 60 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
-                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>⭐</span> Recommended for You
-                </h2>
-              </div>
-              <div className="products-grid">
-                {recommendations.slice(0, 4).map(p => <ProductCard key={p._id} product={p} />)}
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── How It Works ── */}
+      {/* ════════════════════ HOMEPAGE (unsearched) ════════════════════ */}
       {!searched && (
-        <section style={{ padding: '80px 24px', background: 'rgba(99,102,241,0.04)', borderTop: '1px solid rgba(99,102,241,0.1)', borderBottom: '1px solid rgba(99,102,241,0.1)' }}>
-          <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif', marginBottom: 8 }}>How CompareX Works</h2>
-            <p style={{ color: '#9ca3af', marginBottom: 56 }}>Three simple steps to saving money</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 32 }}>
-              {[
-                { step: '01', icon: '🔍', title: 'Search Any Product', desc: 'Type any product name — phone, laptop, shoes, appliance — and hit Compare.' },
-                { step: '02', icon: '⚖️', title: 'Compare Live Prices', desc: 'See real-time prices from Amazon, Flipkart, Myntra & Reliance Digital side by side.' },
-                { step: '03', icon: '🔔', title: 'Set Price Alerts', desc: 'Set your target price and we\'ll email you when it drops. Never miss a deal.' },
-              ].map(item => (
-                <div key={item.step} style={{ background: 'var(--bg-card)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 20, padding: 32, position: 'relative' }}>
-                  <div style={{ position: 'absolute', top: 20, right: 20, fontSize: '0.75rem', fontWeight: 800, color: 'rgba(99,102,241,0.4)', fontFamily: 'Outfit, sans-serif' }}>{item.step}</div>
-                  <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>{item.icon}</div>
-                  <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '1rem' }}>{item.title}</h3>
-                  <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.6 }}>{item.desc}</p>
+        <main className="hero-bg-grid" style={{
+          minHeight: 'calc(100vh - 66px)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '0 24px', position: 'relative',
+        }}>
+          <div style={{ maxWidth: 740, width: '100%', textAlign: 'center', marginBottom: 100 }}>
+
+
+
+            {/* Headline */}
+            <h1 style={{
+              fontSize: 'clamp(2.6rem, 6vw, 4.2rem)', fontWeight: 900,
+              letterSpacing: '-0.04em', marginBottom: 18, lineHeight: 1.15,
+              color: 'var(--text-primary)',
+            }}>
+              Smart Prices<br />
+              <span className="text-gradient">Smarter Shopping</span>
+            </h1>
+
+            <p style={{
+              fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: 'var(--text-secondary)',
+              marginBottom: 44, lineHeight: 1.7, maxWidth: 560, margin: '0 auto 44px',
+            }}>
+              Pricio searches Amazon, Flipkart, Myntra, AJIO, Nykaa & more in real time
+              so you always pay the lowest price.
+            </p>
+
+            {/* Search bar */}
+            <SearchBar onSearch={handleSearch} loading={isSearchActive} initialValue={router.query?.q || ''} />
+
+            {/* Platform trust strip */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 32 }}>
+              {Object.entries(PLATFORM_CONFIG).map(([name, { color, emoji }]) => (
+                <span key={name} className="platform-pill" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '5px 13px', borderRadius: 20,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  fontSize: '0.78rem', color: 'var(--text-secondary)',
+                  cursor: 'default', transition: 'var(--transition)',
+                }}>
+                  {emoji} {name}
+                </span>
+              ))}
+            </div>
+
+            {/* Quick search pills */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 44 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 9 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', minWidth: 80, fontWeight: 500 }}>📱 Electronics:</span>
+                {electronicsCategories.map(cat => (
+                  <button key={cat} onClick={() => handleSearch(cat)} style={{
+                    background: 'rgba(37,99,235,0.08)',
+                    border: '1px solid rgba(37,99,235,0.2)',
+                    borderRadius: 20, padding: '5px 14px',
+                    fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer',
+                    transition: 'var(--transition)', fontFamily: 'Poppins,Inter,sans-serif',
+                  }}
+                  onMouseEnter={e => { e.target.style.color='var(--brand-electric)'; e.target.style.borderColor='rgba(37,99,235,0.5)'; e.target.style.background='rgba(37,99,235,0.15)'; }}
+                  onMouseLeave={e => { e.target.style.color='var(--text-secondary)'; e.target.style.borderColor='rgba(37,99,235,0.2)'; e.target.style.background='rgba(37,99,235,0.08)'; }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 9 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', minWidth: 80, fontWeight: 500 }}>👗 Fashion:</span>
+                {fashionCategories.map(cat => (
+                  <button key={cat} onClick={() => handleSearch(cat)} style={{
+                    background: 'rgba(236,72,153,0.08)',
+                    border: '1px solid rgba(236,72,153,0.2)',
+                    borderRadius: 20, padding: '5px 14px',
+                    fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer',
+                    transition: 'var(--transition)', fontFamily: 'Poppins,Inter,sans-serif',
+                  }}
+                  onMouseEnter={e => { e.target.style.color='#ec4899'; e.target.style.borderColor='rgba(236,72,153,0.5)'; e.target.style.background='rgba(236,72,153,0.15)'; }}
+                  onMouseLeave={e => { e.target.style.color='var(--text-secondary)'; e.target.style.borderColor='rgba(236,72,153,0.2)'; e.target.style.background='rgba(236,72,153,0.08)'; }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginTop: 56 }}>
+              {[['6', 'Platforms'], ['Real‑time', 'Prices'], ['10K+', 'Happy Users']].map(([num, label]) => (
+                <div key={label} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--brand-electric)', letterSpacing: '-0.03em' }}>{num}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: 3 }}>{label}</div>
                 </div>
               ))}
             </div>
           </div>
-        </section>
+        </main>
       )}
 
-      {/* Footer */}
-      <footer style={{ padding: '40px 24px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: '1.2rem' }}>⚡</span>
-          <span style={{ fontWeight: 800, fontFamily: 'Outfit, sans-serif', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>CompareX</span>
+      {/* ════════════════════ SEARCH RESULTS ════════════════════ */}
+      {searched && (
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 66px)' }}>
+
+          {/* Sticky search header */}
+          <div className="desktop-only" style={{
+            position: 'sticky', top: 66, zIndex: 50,
+            background: 'rgba(8,14,31,0.92)', backdropFilter: 'blur(24px)',
+            borderBottom: '1px solid rgba(37,99,235,0.12)',
+            padding: '14px 24px',
+          }}>
+            <div style={{ maxWidth: 1440, margin: '0 auto', display: 'flex', gap: 20, alignItems: 'center' }}>
+
+              <div style={{ flex: 1 }}>
+                <SearchBar onSearch={handleSearch} loading={isSearchActive} compact initialValue={router.query?.q || ''} />
+              </div>
+            </div>
+          </div>
+
+          {/* Content area */}
+          <div className="content-area" style={{
+            maxWidth: 1440, margin: '0 auto', width: '100%',
+            display: 'flex', gap: 28, padding: '28px 24px', flex: 1, alignItems: 'flex-start',
+          }}>
+
+            {/* Sidebar */}
+            <aside className="desktop-only sidebar-panel" style={{ width: 256, flexShrink: 0, position: 'sticky', top: 160 }}>
+              <FilterContent />
+            </aside>
+
+            {/* Main content */}
+            <main style={{ flex: 1, minWidth: 0 }}>
+
+              {/* Mobile top bar */}
+              <div className="mobile-only" style={{ marginBottom: 20, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>{sorted.length} results</span>
+              </div>
+
+              {/* Stream status chips */}
+              {Object.keys(streamStatus).length > 0 && searchState !== 'idle' && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+                  {Object.entries(streamStatus).map(([store, status]) => (
+                    <div key={store} className="status-chip">
+                      {isSearchActive && status.toLowerCase().includes('search') && (
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--brand-electric)', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
+                      )}
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                        {status.toLowerCase().includes('search') ? `Searching ${store}…` : `${store}: ${status}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Live count bar */}
+              {isSearchActive && liveCount > 0 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18,
+                  padding: '10px 16px',
+                  background: 'rgba(37,99,235,0.08)',
+                  border: '1px solid rgba(37,99,235,0.2)',
+                  borderRadius: 10, fontSize: '0.82rem', color: 'var(--text-secondary)',
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--brand-electric)', flexShrink: 0, animation: 'pulse 1.2s ease-in-out infinite' }} />
+                  <span><strong style={{ color: 'var(--text-primary)' }}>{liveCount}</strong> products found so far — still searching…</span>
+                </div>
+              )}
+
+              {/* Results header */}
+              {searchState === 'completed' && sorted.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{sorted.length}</span> results found
+                  </span>
+                  <span style={{
+                    fontSize: '0.72rem', padding: '4px 10px', borderRadius: 20,
+                    background: 'var(--success-bg)', color: 'var(--success)',
+                    border: '1px solid rgba(16,185,129,0.25)', fontWeight: 600,
+                  }}>
+                    ✓ Best prices highlighted
+                  </span>
+                </div>
+              )}
+
+              {/* Debug render logs */}
+              {console.log('[DEBUG] rendering grid with', sorted.length)}
+              {console.log('[DEBUG] displayProducts.length:', displayProducts.length)}
+              {console.log('[DEBUG] priceFiltered.length:', priceFiltered.length)}
+              {console.log('[DEBUG] filtered.length:', filtered.length)}
+
+              {/* Product grid */}
+              <div className="products-grid">
+                {sorted.map((p, idx) => {
+                  console.log('[DEBUG] rendering product', p.title || p.baseName);
+                  try {
+                    return <ProductCard key={p._id || p.baseName || idx} product={p} index={idx} />;
+                  } catch (err) {
+                    console.error('[DEBUG] ProductCard crashed on:', p, err);
+                    return <div key={`err-${idx}`}>Card Crash</div>;
+                  }
+                })}
+                {isLoading && Array(Math.max(0, 8 - sorted.length)).fill(0).map((_, i) => (
+                  <div key={`sk-${i}`} className="skeleton" style={{ height: 380, borderRadius: 12 }} />
+                ))}
+              </div>
+
+              {/* Empty state */}
+              {!isLoading && sorted.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '100px 0', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: 16, opacity: 0.5 }}>🔍</div>
+                  <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: 10, fontWeight: 700 }}>
+                    No products found
+                  </h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: 24 }}>
+                    Try adjusting your filters or search for something else.
+                  </p>
+                  <button onClick={() => { setPlatformFilter('All'); setPriceRange('All'); }} style={{
+                    padding: '10px 22px', borderRadius: 10, border: '1px solid var(--border-color)',
+                    background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer',
+                    fontFamily: 'Poppins,Inter,sans-serif', fontWeight: 500,
+                  }}>
+                    Clear filters
+                  </button>
+                </div>
+              )}
+            </main>
+          </div>
+
+          {/* Mobile bottom bar */}
+          <div className="mobile-bottom-bar">
+            <div style={{ flex: 1 }}>
+              <SearchBar onSearch={handleSearch} loading={isSearchActive} compact initialValue={router.query?.q || ''} />
+            </div>
+            <button onClick={() => setIsMobileDrawerOpen(true)} style={{
+              background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)',
+              borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: 'var(--brand-electric)', cursor: 'pointer',
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
+          </div>
+
+          {/* Mobile filter drawer */}
+          <div className={`mobile-overlay ${isMobileDrawerOpen ? 'open' : ''}`} onClick={() => setIsMobileDrawerOpen(false)} />
+          <div className={`mobile-drawer ${isMobileDrawerOpen ? 'open' : ''}`}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Filters & Sort</h2>
+              <button onClick={() => setIsMobileDrawerOpen(false)} style={{
+                background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-subtle)',
+                borderRadius: 8, color: 'var(--text-secondary)', cursor: 'pointer',
+                width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <FilterContent />
+            <button onClick={() => setIsMobileDrawerOpen(false)} style={{
+              width: '100%', marginTop: 28, padding: '14px', borderRadius: 12,
+              background: 'var(--brand-gradient)', border: 'none', color: 'white',
+              fontWeight: 700, fontSize: '1rem', cursor: 'pointer',
+              fontFamily: 'Poppins,Inter,sans-serif', boxShadow: '0 4px 20px var(--brand-accent-glow)',
+            }}>
+              Show {sorted.length} Results
+            </button>
+          </div>
         </div>
-        <p style={{ color: '#6b7280', fontSize: '0.8rem' }}>Compare prices from Amazon, Flipkart, Myntra & Reliance Digital</p>
-        <p style={{ color: '#4b5563', fontSize: '0.75rem', marginTop: 8 }}>© 2024 CompareX. Built for smart shoppers.</p>
-      </footer>
+      )}
     </>
   );
 }

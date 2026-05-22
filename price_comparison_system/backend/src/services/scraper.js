@@ -41,6 +41,10 @@ const DEMO_PRODUCTS = {
         { name: 'Nike Air Max 270 (Men, UK 9)', brand: 'Nike', category: 'Footwear', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', tags: ['nike', 'shoes', 'sneakers', 'running'], stores: [{ storeName: 'Amazon', price: 8495, originalPrice: 12995, discount: 34, rating: 4.4, reviewCount: 3210, delivery: 'Free, 3-day', deliveryDays: 3, link: 'https://www.amazon.in/s?k=nike+air+max+270', inStock: true }, { storeName: 'Flipkart', price: 7999, originalPrice: 12995, discount: 38, rating: 4.3, reviewCount: 2890, delivery: 'Free, 4-day', deliveryDays: 4, link: 'https://www.flipkart.com/search?q=nike+air+max+270', inStock: true }, { storeName: 'Myntra', price: 8195, originalPrice: 12995, discount: 36, rating: 4.4, reviewCount: 5670, delivery: 'Free, 3-day', deliveryDays: 3, link: 'https://www.myntra.com/nike+air+max+270', inStock: true }] },
         { name: 'Adidas Ultraboost 22 (Unisex, UK 8)', brand: 'Adidas', category: 'Footwear', image: 'https://images.unsplash.com/photo-1543508282-6319a3e2621f?w=400', tags: ['adidas', 'shoes', 'running', 'boost'], stores: [{ storeName: 'Amazon', price: 11999, originalPrice: 17999, discount: 33, rating: 4.5, reviewCount: 2340, delivery: 'Free, 3-day', deliveryDays: 3, link: 'https://www.amazon.in/s?k=adidas+ultraboost+22', inStock: true }, { storeName: 'Myntra', price: 11499, originalPrice: 17999, discount: 36, rating: 4.5, reviewCount: 4120, delivery: 'Free, 3-day', deliveryDays: 3, link: 'https://www.myntra.com/adidas+ultraboost', inStock: true }] },
     ],
+    clothing: [
+        { name: 'Puma Men\'s Solid Cotton T-Shirt', brand: 'Puma', category: 'Clothing', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400', tags: ['tshirt', 'shirt', 'men', 'puma', 'cotton'], stores: [{ storeName: 'Amazon', price: 599, originalPrice: 999, discount: 40, rating: 4.2, reviewCount: 1540, delivery: 'Free, 2-day', deliveryDays: 2, link: 'https://www.amazon.in/s?k=puma+tshirt', inStock: true }, { storeName: 'Flipkart', price: 549, originalPrice: 999, discount: 45, rating: 4.1, reviewCount: 1200, delivery: 'Free, 3-day', deliveryDays: 3, link: 'https://www.flipkart.com/search?q=puma+tshirt', inStock: true }, { storeName: 'Myntra', price: 699, originalPrice: 999, discount: 30, rating: 4.3, reviewCount: 2200, delivery: 'Free, 3-day', deliveryDays: 3, link: 'https://www.myntra.com/puma+tshirt', inStock: true }] },
+        { name: 'Levi\'s Men\'s Slim Fit Casual Shirt', brand: 'Levi\'s', category: 'Clothing', image: 'https://images.unsplash.com/photo-1596755094514-f87e32f85e2c?w=400', tags: ['shirt', 'casual', 'men', 'levis', 'denim'], stores: [{ storeName: 'Amazon', price: 1499, originalPrice: 2499, discount: 40, rating: 4.5, reviewCount: 890, delivery: 'Free, 2-day', deliveryDays: 2, link: 'https://www.amazon.in/s?k=levis+shirt', inStock: true }, { storeName: 'Myntra', price: 1399, originalPrice: 2499, discount: 44, rating: 4.6, reviewCount: 1200, delivery: 'Free, 3-day', deliveryDays: 3, link: 'https://www.myntra.com/levis+shirt', inStock: true }] },
+    ]
 };
 
 function findDemoProducts(query) {
@@ -131,18 +135,154 @@ async function fetchFromRapidAPI(query) {
 }
 
 // ------------------------------------------------------------------
+// Web Scraping (Direct Fallback Before API)
+// ------------------------------------------------------------------
+async function scrapeAmazon(query) {
+    try {
+        const url = `https://www.amazon.in/s?k=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(url, { 
+            headers: Object.assign({}, HEADERS, {'Host': 'www.amazon.in'}), 
+            timeout: TIMEOUT 
+        });
+        const $ = cheerio.load(data);
+        const results = [];
+        
+        $('.s-result-item[data-component-type="s-search-result"]').each((i, el) => {
+            if (results.length >= 5) return false;
+            
+            const title = $(el).find('h2 a span').text().trim();
+            const priceText = $(el).find('.a-price-whole').first().text().replace(/,/g, '').trim();
+            const originalPriceText = $(el).find('.a-text-price .a-offscreen').first().text().replace(/,/g, '').replace('₹', '').trim();
+            const link = 'https://www.amazon.in' + $(el).find('h2 a').attr('href');
+            const image = $(el).find('.s-image').attr('src');
+            
+            if (title && priceText) {
+                const price = parseFloat(priceText);
+                const originalPrice = originalPriceText ? parseFloat(originalPriceText) : price;
+                
+                results.push({
+                    name: title,
+                    brand: 'Unknown',
+                    category: 'General',
+                    image: image || '',
+                    tags: query.split(' '),
+                    stores: [{
+                        storeName: 'Amazon',
+                        price: price,
+                        originalPrice: originalPrice,
+                        delivery: 'Standard',
+                        link: link,
+                        rating: 4.0,
+                        reviewCount: 0,
+                        inStock: true
+                    }]
+                });
+            }
+        });
+        return results;
+    } catch (err) {
+        console.error("Amazon Scraping Error:", err.message);
+        return [];
+    }
+}
+
+async function scrapeFlipkart(query) {
+    try {
+        const url = `https://www.flipkart.com/search?q=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(url, { 
+            headers: Object.assign({}, HEADERS, {'Host': 'www.flipkart.com'}), 
+            timeout: TIMEOUT 
+        });
+        const $ = cheerio.load(data);
+        const results = [];
+        
+        $('div[data-id]').each((i, el) => {
+            if (results.length >= 5) return false;
+            
+            let title = $(el).find('img').attr('alt') || $(el).find('a.CGtC98, a._1fQZEK, a.IRpwTa, a.WKTcLC').text().trim();
+            if (!title) {
+                const possibleLink = $(el).find('a').first();
+                if(possibleLink.text().length > 10) title = possibleLink.text().trim();
+            }
+
+            const textContent = $(el).text();
+            let priceText = "";
+            let originalPriceText = "";
+            const priceDiv = $(el).find('div._30jeq3, div.Nx9bqj');
+            if (priceDiv.length > 0) {
+                 priceText = priceDiv.first().text().replace(/₹|,/g, '').trim();
+            } else {
+                 const priceMatch = textContent.match(/₹([\d,]+)/);
+                 if (priceMatch) priceText = priceMatch[1].replace(/,/g, '');
+            }
+
+            const img = $(el).find('img').attr('src');
+            let link = $(el).find('a').attr('href');
+            if (link && !link.startsWith('http')) link = 'https://www.flipkart.com' + link;
+
+            if (title && priceText) {
+                const price = parseFloat(priceText);
+                results.push({
+                    name: title,
+                    brand: 'Unknown',
+                    category: 'General',
+                    image: img || '',
+                    tags: query.split(' '),
+                    stores: [{
+                        storeName: 'Flipkart',
+                        price: price,
+                        originalPrice: price, // Simple fallback
+                        delivery: 'Standard',
+                        link: link,
+                        rating: 4.0,
+                        reviewCount: 0,
+                        inStock: true
+                    }]
+                });
+            }
+        });
+        
+        return results;
+    } catch (err) {
+        console.error("Flipkart Scraping Error:", err.message);
+        return [];
+    }
+}
+
+// ------------------------------------------------------------------
 // Main export — search across all platforms
 // ------------------------------------------------------------------
 exports.searchAllPlatforms = async (query) => {
-    const rapidApiResults = await fetchFromRapidAPI(query);
-    const demoProducts = findDemoProducts(query);
+    // 1. First attempt to scrape directly
+    const [amazonResults, flipkartResults] = await Promise.allSettled([
+        scrapeAmazon(query),
+        scrapeFlipkart(query)
+    ]);
 
-    // If we got real data from the API, use it
+    let scrapedProducts = [];
+    if (amazonResults.status === 'fulfilled') {
+        scrapedProducts = scrapedProducts.concat(amazonResults.value);
+    }
+    if (flipkartResults.status === 'fulfilled') {
+        scrapedProducts = scrapedProducts.concat(flipkartResults.value);
+    }
+
+    // If scraping gave us some results, return them
+    if (scrapedProducts.length > 0) {
+        console.log(`Scraping successful. Found ${scrapedProducts.length} items for "${query}"`);
+        return scrapedProducts;
+    }
+
+    // 2. If scraping failed (returns 0 items), use RapidAPI
+    console.log(`Scraping yielded 0 items. Falling back to RapidAPI for "${query}"`);
+    const rapidApiResults = await fetchFromRapidAPI(query);
     if (rapidApiResults && rapidApiResults.length > 0) {
         return rapidApiResults;
     }
 
-    // Full demo mode fallback
+    // 3. Full demo mode fallback
+    console.log(`RapidAPI failed/empty. Falling back to Demo Data for "${query}"`);
+    const demoProducts = findDemoProducts(query);
     return demoProducts;
 };
 

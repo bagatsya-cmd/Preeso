@@ -1,22 +1,8 @@
-const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
 const cron = require('node-cron');
 require('dotenv').config();
 
-const app = express();
-
-// Middleware
-app.use(cors({ origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], credentials: true }));
-app.use(express.json());
-
-// Routes
-app.use('/api/products', require('./src/routes/product'));
-app.use('/api/auth', require('./src/routes/auth'));
-app.use('/api/wishlist', require('./src/routes/wishlist'));
-
-// Health check
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+const app = require('./src/app');
 
 // Connect MongoDB
 mongoose.connect(process.env.MONGO_URI)
@@ -32,7 +18,11 @@ mongoose.connect(process.env.MONGO_URI)
 
 function startServer() {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`🚀 CompareX backend running on http://localhost:${PORT}`));
+  console.log('[SERVER HOST]', '0.0.0.0');
+  console.log('[SERVER PORT]', PORT);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Pricio backend running on http://127.0.0.1:${PORT}`);
+  });
 
   // Cron: check price alerts every hour
   cron.schedule('0 * * * *', async () => {

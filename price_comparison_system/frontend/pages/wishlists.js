@@ -10,26 +10,30 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('comparex_token');
+    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
     if (!token) { setLoading(false); return; }
     axios.get('/api/wishlist', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => { setProducts(r.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('comparex_token') : null;
+  const token = typeof window !== 'undefined'
+    ? (localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token'))
+    : null;
 
   return (
     <>
       <Head>
-        <title>My Wishlist — CompareX</title>
+        <title>My Wishlist — Pricio</title>
+        <meta name="description" content="Your saved products on Pricio — track prices and get the best deals." />
+        <link rel="icon" href="/favicon.png" />
       </Head>
       <Navbar />
       <main style={{ paddingTop: 100, paddingBottom: 80, minHeight: '100vh' }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
           <div style={{ marginBottom: 40 }}>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, fontFamily: 'Outfit, sans-serif' }}>❤️ My Wishlist</h1>
-            <p style={{ color: '#9ca3af', marginTop: 6 }}>Your saved products for price tracking</p>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, fontFamily: 'Poppins, sans-serif', letterSpacing: '-0.03em' }}>❤️ My Wishlist</h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: 8, fontSize: '0.9rem' }}>Your saved products for price tracking on Pricio</p>
           </div>
 
           {loading && (
@@ -60,7 +64,7 @@ export default function WishlistPage() {
             <>
               <p style={{ color: '#9ca3af', marginBottom: 24, fontSize: '0.875rem' }}>{products.length} saved product{products.length !== 1 ? 's' : ''}</p>
               <div className="products-grid">
-                {products.map(p => <ProductCard key={p._id} product={p} />)}
+                {products.map(p => <ProductCard key={p._id} product={p} inWishlistProp={true} />)}
               </div>
             </>
           )}

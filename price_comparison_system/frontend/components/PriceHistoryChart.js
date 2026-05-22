@@ -7,10 +7,12 @@ import { Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const STORE_PALETTE = {
-  Amazon: { line: '#ff9900', fill: 'rgba(255,153,0,0.08)' },
-  Flipkart: { line: '#2874f0', fill: 'rgba(40,116,240,0.08)' },
-  Myntra: { line: '#ff3f6c', fill: 'rgba(255,63,108,0.08)' },
+  Amazon:           { line: '#ff9900', fill: 'rgba(255,153,0,0.08)' },
+  Flipkart:         { line: '#2874f0', fill: 'rgba(40,116,240,0.08)' },
+  Myntra:           { line: '#ff3f6c', fill: 'rgba(255,63,108,0.08)' },
   'Reliance Digital': { line: '#e11d48', fill: 'rgba(225,29,72,0.08)' },
+  AJIO:             { line: '#333333', fill: 'rgba(51,51,51,0.08)' },
+  Nykaa:            { line: '#e91e8c', fill: 'rgba(233,30,140,0.08)' },
 };
 
 export default function PriceHistoryChart({ history = [], stores = [] }) {
