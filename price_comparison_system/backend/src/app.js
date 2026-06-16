@@ -8,7 +8,7 @@ const app = express();
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin:      process.env.FRONTEND_URL || 'http://127.0.0.1:3000',
+  origin:      process.env.FRONTEND_URL,
   methods:     ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
@@ -56,4 +56,4 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException',  err => console.error('[App] Uncaught:', err));
 process.on('unhandledRejection', err => console.error('[App] Unhandled rejection:', err));
 
-module.exports = app;
+module.exports = app;
