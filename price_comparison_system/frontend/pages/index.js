@@ -147,7 +147,7 @@ export default function Home() {
       setLiveCount(0);
     }
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL;
     const eventSource = new EventSource(`${apiBase}/api/stream/search?q=${encodeURIComponent(query)}`);
     eventSourceRef.current = eventSource;
 
