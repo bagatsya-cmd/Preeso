@@ -8,12 +8,17 @@ const app = require('./src/app');
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
-    startServer();
+    // Only start standard server if NOT on Vercel
+    if (!process.env.VERCEL) {
+        startServer();
+    }
   })
   .catch(err => {
     console.error('❌ MongoDB connection failed:', err.message);
     console.log('Starting server without database (limited functionality)...');
-    startServer();
+    if (!process.env.VERCEL) {
+        startServer();
+    }
   });
 
 function startServer() {
@@ -52,3 +57,6 @@ function startServer() {
     console.log('✅ Price refresh complete');
   });
 }
+
+// CRITICAL FOR VERCEL: Export the Express app so Vercel can pass requests to it
+module.exports = app;
