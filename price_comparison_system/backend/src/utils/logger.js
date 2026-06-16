@@ -1,5 +1,5 @@
 /**
- * Structured Logger for CompareX
+ * Structured Logger for Preeso
  * Replaces console.log with timestamped, categorized, JSON-structured output.
  * Zero external dependencies.
  */

@@ -42,7 +42,7 @@ export default function ProductPage() {
       setProduct(r.data); 
       setLoading(false); 
       
-      const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+      const token = localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token');
       if (token) {
         axios.post(`/api/products/history/view/${id}`, {}, { headers: { Authorization: `Bearer ${token}` } }).catch(()=>{});
       }
@@ -75,7 +75,7 @@ export default function ProductPage() {
   const savings = lowestStore?.originalPrice ? lowestStore.originalPrice - lowestStore.price : 0;
 
   const toggleWishlist = async () => {
-    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+    const token = localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token');
     if (!token) return;
     try {
       await axios.post(`/api/wishlist/${product._id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
@@ -86,7 +86,7 @@ export default function ProductPage() {
   return (
     <>
       <Head>
-        <title>{product.name} | Pricio</title>
+        <title>{product.name} | Preeso</title>
         <style>{`
           .mobile-buy-bar {
             position: fixed;

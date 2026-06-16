@@ -24,14 +24,14 @@ exports.checkAlerts = async () => {
           if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             await transporter.sendMail({
               to: user.email,
-              subject: `🔔 CompareX: Price Drop Alert for ${product.name}!`,
+              subject: `🔔 Preeso: Price Drop Alert for ${product.name}!`,
               html: `
                 <div style="font-family:sans-serif;max-width:500px;margin:auto">
                   <h2 style="color:#6366f1">🎉 Price Drop!</h2>
                   <p><strong>${product.name}</strong> is now <strong>₹${targetStore.price.toLocaleString()}</strong> on <strong>${targetStore.storeName}</strong>.</p>
                   <p>Your target price was ₹${alert.targetPrice.toLocaleString()}.</p>
                   <a href="${targetStore.link}" style="background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px">Buy Now on ${targetStore.storeName}</a>
-                  <p style="color:#888;font-size:12px;margin-top:20px">You set this alert on CompareX.</p>
+                  <p style="color:#888;font-size:12px;margin-top:20px">You set this alert on Preeso.</p>
                 </div>`
             });
           }

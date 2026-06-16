@@ -43,7 +43,7 @@ function buildCandidates(product) {
   return unique.sort((a, b) => cdnScore(b) - cdnScore(a));
 }
 
-// ── Platform branding chips — Pricio theme ───────────────────────────────────
+// ── Platform branding chips — Preeso theme ───────────────────────────────────
 const PLATFORM_CHIPS = {
   AJIO:    { label: 'AJIO',    bg: 'rgba(228,0,43,0.18)',    color: '#ff4d6a',  border: 'rgba(228,0,43,0.3)'    },
   Nykaa:   { label: 'NYKAA',  bg: 'rgba(233,30,140,0.18)',  color: '#f472b6',  border: 'rgba(233,30,140,0.3)'  },
@@ -136,7 +136,7 @@ const ProductCard = memo(function ProductCard({ product, index = 99, inWishlistP
       setInWishlist(inWishlistProp);
       return;
     }
-    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+    const token = localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token');
     if (!token) return;
 
     getWishlistCached(token).then(favs => {
@@ -207,7 +207,7 @@ const ProductCard = memo(function ProductCard({ product, index = 99, inWishlistP
   const toggleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+    const token = localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token');
     if (!token) {
       alert("Please login or sign up to add products to your wishlist.");
       router.push('/login');

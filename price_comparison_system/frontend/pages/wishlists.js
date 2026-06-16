@@ -4,13 +4,14 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import ProductCard from '../components/ProductCard';
+import Footer from '../components/Footer';
 
 export default function WishlistPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+    const token = localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token');
     if (!token) { setLoading(false); return; }
     axios.get('/api/wishlist', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => { setProducts(r.data); setLoading(false); })
@@ -18,14 +19,14 @@ export default function WishlistPage() {
   }, []);
 
   const token = typeof window !== 'undefined'
-    ? (localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token'))
+    ? (localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token'))
     : null;
 
   return (
     <>
       <Head>
-        <title>My Wishlist — Pricio</title>
-        <meta name="description" content="Your saved products on Pricio — track prices and get the best deals." />
+        <title>My Wishlist — Preeso</title>
+        <meta name="description" content="Your saved products on Preeso — track prices and get the best deals." />
         <link rel="icon" href="/favicon.png" />
       </Head>
       <Navbar />
@@ -33,7 +34,7 @@ export default function WishlistPage() {
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
           <div style={{ marginBottom: 40 }}>
             <h1 style={{ fontSize: '2rem', fontWeight: 800, fontFamily: 'Poppins, sans-serif', letterSpacing: '-0.03em' }}>❤️ My Wishlist</h1>
-            <p style={{ color: 'var(--text-muted)', marginTop: 8, fontSize: '0.9rem' }}>Your saved products for price tracking on Pricio</p>
+            <p style={{ color: 'var(--text-muted)', marginTop: 8, fontSize: '0.9rem' }}>Your saved products for price tracking on Preeso</p>
           </div>
 
           {loading && (
@@ -70,6 +71,7 @@ export default function WishlistPage() {
           )}
         </div>
       </main>
+      <Footer />
     </>
   );
 }

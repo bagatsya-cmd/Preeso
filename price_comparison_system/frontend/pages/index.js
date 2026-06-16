@@ -5,9 +5,10 @@ import Head from 'next/head';
 import Navbar from '../components/Navbar';
 import SearchBar from '../components/SearchBar';
 import ProductCard from '../components/ProductCard';
+import Footer from '../components/Footer';
 
-/* ── Pricio inline SVG icon (used in hero badge) ─────────────────────────── */
-function PricioIcon({ size = 20 }) {
+/* ── Preeso inline SVG icon (used in hero badge) ─────────────────────────── */
+function PreesoIcon({ size = 20 }) {
   return (
     <svg viewBox="0 0 44 44" width={size} height={size} fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="44" height="44" rx="10" fill="url(#hiBg)" />
@@ -389,10 +390,10 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Pricio — Smart Prices. Smarter Shopping.</title>
-        <meta name="description" content="Pricio compares prices across Amazon, Flipkart, Myntra, AJIO, Nykaa and more — find the best deals in real time." />
+        <title>Preeso — Smart Prices. Smarter Shopping.</title>
+        <meta name="description" content="Preeso compares prices across Amazon, Flipkart, Myntra, AJIO, Nykaa and more — find the best deals in real time." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta property="og:title" content="Pricio — Smart Prices. Smarter Shopping." />
+        <meta property="og:title" content="Preeso — Smart Prices. Smarter Shopping." />
         <meta property="og:description" content="Compare product prices across all major Indian e-commerce platforms instantly." />
         <link rel="icon" href="/favicon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -477,13 +478,14 @@ export default function Home() {
 
       {/* ════════════════════ HOMEPAGE (unsearched) ════════════════════ */}
       {!searched && (
-        <main className="hero-bg-grid" style={{
-          minHeight: 'calc(100vh - 66px)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '0 24px', position: 'relative',
-        }}>
-          <div style={{ maxWidth: 740, width: '100%', textAlign: 'center', marginBottom: 100 }}>
+        <>
+          <main className="hero-bg-grid" style={{
+            minHeight: 'calc(100vh - 66px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '0 24px', position: 'relative',
+          }}>
+            <div style={{ maxWidth: 740, width: '100%', textAlign: 'center', marginBottom: 100 }}>
 
 
 
@@ -501,7 +503,7 @@ export default function Home() {
               fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: 'var(--text-secondary)',
               marginBottom: 44, lineHeight: 1.7, maxWidth: 560, margin: '0 auto 44px',
             }}>
-              Pricio searches Amazon, Flipkart, Myntra, AJIO, Nykaa & more in real time
+              Preeso searches Amazon, Flipkart, Myntra, AJIO, Nykaa & more in real time
               so you always pay the lowest price.
             </p>
 
@@ -571,8 +573,10 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </div>
-        </main>
+            </div>
+          </main>
+          <Footer />
+        </>
       )}
 
       {/* ════════════════════ SEARCH RESULTS ════════════════════ */}
@@ -740,6 +744,7 @@ export default function Home() {
               Show {sorted.length} Results
             </button>
           </div>
+          <Footer />
         </div>
       )}
     </>

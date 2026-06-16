@@ -21,7 +21,7 @@ function startServer() {
   console.log('[SERVER HOST]', '0.0.0.0');
   console.log('[SERVER PORT]', PORT);
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Pricio backend running on http://127.0.0.1:${PORT}`);
+    console.log(`🚀 Preeso backend running on http://127.0.0.1:${PORT}`);
   });
 
   // Cron: check price alerts every hour

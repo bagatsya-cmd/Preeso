@@ -9,7 +9,7 @@ export default function AlertForm({ productId, stores = [], currentLowest }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('pricio_token') || localStorage.getItem('comparex_token');
+    const token = localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token');
     if (!token) { setStatus({ type: 'error', msg: 'Please login to set price alerts' }); return; }
     if (!targetPrice || isNaN(targetPrice)) { setStatus({ type: 'error', msg: 'Please enter a valid price' }); return; }
     setLoading(true);
