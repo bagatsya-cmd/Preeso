@@ -32,7 +32,8 @@ class BrowserManager {
     this.launchPromise = (async () => {
       try {
         console.log('🌐 Launching global Chromium instance...');
-        this.browser = await puppeteer.launch({
+        
+        const launchOptions = {
           headless: 'new',
           protocolTimeout: 120000,
           args: [
@@ -56,7 +57,14 @@ class BrowserManager {
             '--disable-backgrounding-occluded-windows',
           ],
           ignoreHTTPSErrors: true,
-        });
+        };
+
+        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+          launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+          console.log(`[BrowserManager] Using system chromium path: ${launchOptions.executablePath}`);
+        }
+
+        this.browser = await puppeteer.launch(launchOptions);
         console.log('✅ Global Chromium instance ready. Browser launched successfully.');
         return this.browser;
       } catch (err) {
