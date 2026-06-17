@@ -29,8 +29,22 @@ class BaseScraper {
           console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Timeout value being used: ${this.timeoutMs}ms`);
 
           let navigationSuccess = false;
+          let waitUntilVal = 'load';
           try {
-            const response = await page.goto(url, { waitUntil: 'networkidle', timeout: this.timeoutMs });
+            let response = null;
+            try {
+              console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigating with waitUntil: "${waitUntilVal}"`);
+              response = await page.goto(url, { waitUntil: waitUntilVal, timeout: this.timeoutMs });
+            } catch (gotoErr) {
+              if (gotoErr.message.includes('waitUntil') || gotoErr.message.includes('options.waitUntil')) {
+                waitUntilVal = 'domcontentloaded';
+                console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Failed with waitUntil error. Retrying with fallback waitUntil: "${waitUntilVal}"`);
+                response = await page.goto(url, { waitUntil: waitUntilVal, timeout: this.timeoutMs });
+              } else {
+                throw gotoErr;
+              }
+            }
+
             if (response && (response.status() === 403 || response.status() === 429 || response.status() === 503)) {
               throw new Error(`Bot detected (${response.status()})`);
             }
@@ -39,7 +53,7 @@ class BaseScraper {
             try {
               title = await page.title();
             } catch (_) {}
-            console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation completed successfully. Page title: "${title}"`);
+            console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation completed successfully with waitUntil: "${waitUntilVal}". Page title: "${title}"`);
           } catch (gotoErr) {
             let title = '';
             try {
@@ -50,7 +64,7 @@ class BaseScraper {
               console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation failed. Page title: "${title}". Error: ${gotoErr.message}`);
               throw gotoErr;
             }
-            console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation timed out. Page title: "${title}"`);
+            console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation timed out using waitUntil: "${waitUntilVal}". Page title: "${title}"`);
             console.log(`[${this.platformName}] Navigation timeout, attempting partial scrape...`);
           }
 
