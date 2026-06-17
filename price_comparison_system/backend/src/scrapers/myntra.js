@@ -10,6 +10,52 @@ class MyntraScraper extends BaseScraper {
     const url = `https://www.myntra.com/${encodeURIComponent(query).replace(/%20/g, '-')}`;
     
     return this.scrapeWithRetry(url, async (page) => {
+      // 1. Try JSON extraction from window.__myx script first
+      const jsonProducts = await page.evaluate(() => {
+        try {
+          const scripts = Array.from(document.querySelectorAll('script'));
+          const myxScript = scripts.find(s => s.textContent && s.textContent.includes('window.__myx') && s.textContent.includes('searchData'));
+          if (myxScript) {
+            const content = myxScript.textContent;
+            const startIdx = content.indexOf('window.__myx =') + 'window.__myx ='.length;
+            let jsonStr = content.substring(startIdx).trim();
+            if (jsonStr.endsWith(';')) jsonStr = jsonStr.substring(0, jsonStr.length - 1);
+            const parsed = JSON.parse(jsonStr);
+            if (parsed && parsed.searchData && parsed.searchData.results && parsed.searchData.results.products) {
+              return parsed.searchData.results.products.map(p => {
+                let link = p.landingPageUrl || '';
+                if (link && !link.startsWith('http')) {
+                  link = 'https://www.myntra.com/' + link;
+                }
+                const image = p.searchImage || (p.images?.[0]?.src) || p.imageUrl || '';
+                return {
+                  platform: 'Myntra',
+                  title: p.productName || `${p.brand} ${p.additionalInfo || ''}`.trim(),
+                  price: parseFloat(p.price),
+                  originalPrice: parseFloat(p.mrp || p.price),
+                  link,
+                  image,
+                  brand: p.brand || 'Unknown',
+                  inStock: true
+                };
+              });
+            }
+          }
+        } catch (e) {
+          console.error('[Myntra-eval] JSON parse error:', e.message);
+        }
+        return null;
+      });
+
+      if (jsonProducts && jsonProducts.length > 0) {
+        console.log(`[Myntra] Successfully extracted ${jsonProducts.length} products from window.__myx JSON`);
+        return jsonProducts.slice(0, 12).map(p => {
+          p.image = imageValidator.validateImage(p.image) || null;
+          return p;
+        });
+      }
+
+      // 2. DOM fallback
       const results = [];
       
       // Wait for products to load

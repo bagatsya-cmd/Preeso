@@ -17,13 +17,12 @@ class RelianceScraper {
   }
 
   async search(query) {
-    const url = `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}&page_no=1&page_size=12&page_type=number`;
+    const url = `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
     let page = null;
     const results = [];
 
     try {
-      const browser = await browserManager.getBrowser();
-      page = await browserManager.getPage(null);
+      page = await browserManager.getPage(null, true);
 
       // getPage() already configured UA, viewport, headers and request interception
 

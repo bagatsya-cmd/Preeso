@@ -6,10 +6,10 @@
 class ProxyManager {
   constructor() {
     // In production, these should be loaded from env or a database.
-    this.proxies = [
-      // Example: 'http://username:password@proxy.brightdata.com:22225'
-      // Using placeholder proxies for structural purposes
-    ];
+    const envProxies = process.env.PROXIES || process.env.PROXY_LIST;
+    this.proxies = envProxies 
+      ? envProxies.split(',').map(p => p.trim()).filter(Boolean)
+      : [];
     this.badProxies = new Set();
     this.usageStats = new Map();
   }

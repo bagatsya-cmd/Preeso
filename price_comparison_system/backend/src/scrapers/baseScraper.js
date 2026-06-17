@@ -60,7 +60,7 @@ class BaseScraper {
               title = await page.title();
             } catch (_) {}
 
-            if (!gotoErr.message.includes('Timeout')) {
+            if (!/timeout/i.test(gotoErr.message)) {
               console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation failed. Page title: "${title}". Error: ${gotoErr.message}`);
               throw gotoErr;
             }

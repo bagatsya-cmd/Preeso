@@ -38,9 +38,8 @@ class NykaaScraper {
 
   async search(query) {
     const isFashion = FASHION_RE.test(query);
-    const baseUrl   = isFashion
-      ? `https://www.nykaafashion.com/search/result/?q=${encodeURIComponent(query)}`
-      : `https://www.nykaa.com/search/result/?q=${encodeURIComponent(query)}&ptype=search&id=0`;
+    // Phase 12: Route all searches through nykaa.com search redirect to avoid Akamai 502 Bad Gateway
+    const baseUrl = `https://www.nykaa.com/search/result/?q=${encodeURIComponent(query)}&ptype=search&id=0`;
 
     let   page    = null;
     const results = [];

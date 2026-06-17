@@ -75,7 +75,7 @@ class BrowserManager {
    * Create a fresh isolated tab with resource blocking pre-configured.
    * Each tab is independent — safe for true parallel scraping.
    */
-  async getPage(proxy = null) {
+  async getPage(proxy = null, skipInterception = false) {
     const browser = await this.getBrowser();
     const page    = await browser.newPage();
 
@@ -87,19 +87,21 @@ class BrowserManager {
       'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     });
 
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const type = req.resourceType();
-      const url  = req.url().toLowerCase();
+    if (!skipInterception) {
+      await page.setRequestInterception(true);
+      page.on('request', (req) => {
+        const type = req.resourceType();
+        const url  = req.url().toLowerCase();
 
-      // Always block these resource types
-      if (BLOCKED_RESOURCE_TYPES.has(type)) { req.abort(); return; }
+        // Always block these resource types
+        if (BLOCKED_RESOURCE_TYPES.has(type)) { req.abort(); return; }
 
-      // Block tracking/analytics by URL pattern
-      if (BLOCKED_URL_PATTERNS.some(p => url.includes(p))) { req.abort(); return; }
+        // Block tracking/analytics by URL pattern
+        if (BLOCKED_URL_PATTERNS.some(p => url.includes(p))) { req.abort(); return; }
 
-      req.continue();
-    });
+        req.continue();
+      });
+    }
 
     return page;
   }
