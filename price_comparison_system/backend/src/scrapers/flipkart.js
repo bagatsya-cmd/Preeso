@@ -24,7 +24,7 @@ class FlipkartScraper extends BaseScraper {
       const products = await page.$$('div[data-id]');
       console.log(`[Flipkart] Found ${products.length} product containers`);
 
-      const products = await page.$$('div[data-id]');
+      
       
       for (const el of products.slice(0, 12)) {
         try {
