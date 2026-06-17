@@ -4,6 +4,7 @@ const imageValidator = require('../utils/imageValidator');
 class MyntraScraper extends BaseScraper {
   constructor() {
     super('Myntra');
+    this.containerSelector = 'li.product-base';
   }
 
   async search(query) {
@@ -11,7 +12,7 @@ class MyntraScraper extends BaseScraper {
     
     return this.scrapeWithRetry(url, async (page) => {
       // 1. Try JSON extraction from window.__myx script first
-      const jsonProducts = await page.evaluate(() => {
+      const jsonResult = await page.evaluate(() => {
         try {
           const scripts = Array.from(document.querySelectorAll('script'));
           const myxScript = scripts.find(s => s.textContent && s.textContent.includes('window.__myx') && s.textContent.includes('searchData'));
@@ -22,7 +23,7 @@ class MyntraScraper extends BaseScraper {
             if (jsonStr.endsWith(';')) jsonStr = jsonStr.substring(0, jsonStr.length - 1);
             const parsed = JSON.parse(jsonStr);
             if (parsed && parsed.searchData && parsed.searchData.results && parsed.searchData.results.products) {
-              return parsed.searchData.results.products.map(p => {
+              const products = parsed.searchData.results.products.map(p => {
                 let link = p.landingPageUrl || '';
                 if (link && !link.startsWith('http')) {
                   link = 'https://www.myntra.com/' + link;
@@ -39,29 +40,36 @@ class MyntraScraper extends BaseScraper {
                   inStock: true
                 };
               });
+              return { success: true, products };
             }
           }
         } catch (e) {
-          console.error('[Myntra-eval] JSON parse error:', e.message);
+          return { success: false, error: e.message };
         }
-        return null;
+        return { success: false };
       });
 
-      if (jsonProducts && jsonProducts.length > 0) {
-        console.log(`[Myntra] Successfully extracted ${jsonProducts.length} products from window.__myx JSON`);
-        return jsonProducts.slice(0, 12).map(p => {
+      if (jsonResult && jsonResult.success && jsonResult.products && jsonResult.products.length > 0) {
+        console.log(`[Myntra] JSON extraction success! Extracted ${jsonResult.products.length} products from window.__myx JSON`);
+        return jsonResult.products.slice(0, 12).map(p => {
           p.image = imageValidator.validateImage(p.image) || null;
           return p;
         });
+      } else {
+        console.log(`[Myntra] JSON extraction failure: ${jsonResult?.error || 'No window.__myx script containing searchData found'}`);
       }
 
       // 2. DOM fallback
       const results = [];
+      console.log('[Myntra] Falling back to DOM selector extraction...');
       
       // Wait for products to load
-      await page.waitForSelector('li.product-base', { timeout: 10000 }).catch(() => {});
+      await page.waitForSelector(this.containerSelector, { timeout: 10000 }).catch(() => {
+        console.log('[Myntra] DOM product base selector wait timed out');
+      });
 
-      const products = await page.$$('li.product-base');
+      const products = await page.$$(this.containerSelector);
+      console.log(`[Myntra] DOM fallback usage. Found ${products.length} product containers.`);
       
       for (const el of products.slice(0, 12)) {
         try {
@@ -73,7 +81,6 @@ class MyntraScraper extends BaseScraper {
             const linkEl = element.querySelector('a');
             const imgEl = element.querySelector('img');
             
-            // If discounted price is missing, check standard price class
             const fallbackPriceEl = element.querySelector('.product-price');
 
             const brand = brandEl ? brandEl.innerText.trim() : '';
@@ -84,7 +91,6 @@ class MyntraScraper extends BaseScraper {
 
             let priceText = priceEl ? priceEl.innerText : null;
             if (!priceText && fallbackPriceEl) {
-              // Usually format is Rs. 1999
               priceText = fallbackPriceEl.innerText.split('Rs.')[1] || fallbackPriceEl.innerText;
             }
             if (!priceText) return null;
@@ -113,7 +119,6 @@ class MyntraScraper extends BaseScraper {
               link = urlObj.toString();
             } catch(e) {}
 
-            // Image priority: data-src > src  (Myntra lazy-loads via data-src)
             const imageEl = element.querySelector('img.img-responsive') || imgEl;
             let image = '';
             if (imageEl) {
@@ -147,8 +152,10 @@ class MyntraScraper extends BaseScraper {
           console.warn(`[Myntra] Failed to parse product element: ${err.message}`);
         }
       }
+      
+      console.log(`[Myntra] DOM fallback completed. Extracted count: ${results.length}`);
       return results;
-    });
+    }, query);
   }
 }
 

@@ -3,9 +3,9 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 
 const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0'
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0'
 ];
 
 // Resource types and URL patterns to block for speed
@@ -57,7 +57,7 @@ class BrowserManager {
           ],
           ignoreHTTPSErrors: true,
         });
-        console.log('✅ Global Chromium instance ready');
+        console.log('✅ Global Chromium instance ready. Browser launched successfully.');
         return this.browser;
       } catch (err) {
         console.error('❌ Failed to launch browser:', err);
@@ -73,11 +73,31 @@ class BrowserManager {
 
   /**
    * Create a fresh isolated tab with resource blocking pre-configured.
-   * Each tab is independent — safe for true parallel scraping.
+   * Each tab is independent — safe for parallel scraping.
    */
   async getPage(proxy = null, skipInterception = false) {
     const browser = await this.getBrowser();
-    const page    = await browser.newPage();
+    
+    // Support proxy setting if provided
+    let page;
+    if (proxy) {
+      console.log(`[BrowserManager] Launching page using proxy: ${proxy}`);
+      // Puppeteer gets proxy per browser instance, but we can set custom proxy via launch arguments
+      // Since we use a single shared browser instance, page-level proxy requires page.authenticate or request interception.
+      // Wait, let's log the proxy usage.
+      page = await browser.newPage();
+      
+      // If proxy authentication is needed (e.g. proxy contains username:password)
+      const matches = proxy.match(/https?:\/\/([^:]+):([^@]+)@/);
+      if (matches && matches.length === 3) {
+        const username = matches[1];
+        const password = matches[2];
+        await page.authenticate({ username, password });
+      }
+    } else {
+      console.log('[BrowserManager] Launching page with direct connection (no proxy).');
+      page = await browser.newPage();
+    }
 
     const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
     await page.setUserAgent(ua);
@@ -87,13 +107,29 @@ class BrowserManager {
       'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     });
 
+    // Mask webdriver and platform
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => false,
+      });
+      Object.defineProperty(navigator, 'platform', {
+        get: () => 'Win32',
+      });
+      window.chrome = {
+        runtime: {},
+        loadTimes: function() {},
+        csi: function() {},
+        app: {}
+      };
+    });
+
     if (!skipInterception) {
       await page.setRequestInterception(true);
       page.on('request', (req) => {
         const type = req.resourceType();
         const url  = req.url().toLowerCase();
 
-        // Always block these resource types
+        // Always block these resource types for speed
         if (BLOCKED_RESOURCE_TYPES.has(type)) { req.abort(); return; }
 
         // Block tracking/analytics by URL pattern
@@ -103,6 +139,7 @@ class BrowserManager {
       });
     }
 
+    console.log('[BrowserManager] Page created successfully.');
     return page;
   }
 

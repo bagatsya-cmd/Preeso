@@ -6,15 +6,78 @@ class RelianceScraper extends BaseScraper {
     super('Reliance Digital');
     this.skipInterception = true;
     this.timeoutMs = 15000; // Client-side rendered React SPA needs ample time
+    this.containerSelector = 'a.details-container';
+  }
+
+  async preparePage(page) {
+    page._apiJson = null;
+    page.on('response', async (res) => {
+      try {
+        const u = res.url();
+        if (u.includes('/ext/raven-api/catalog/v1.0/products')) {
+          page._apiJson = await res.json();
+          console.log(`[Reliance Digital] Successfully captured raven API response from ${u}`);
+        }
+      } catch (err) {
+        // Response might not have json (e.g. 204 or OPTIONS requests)
+      }
+    });
   }
 
   async search(query) {
     const url = `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
 
     return this.scrapeWithRetry(url, async (page) => {
+      // 1. Try to fetch from captured API response first, wait up to 8s
+      const apiStart = Date.now();
+      while (!page._apiJson && (Date.now() - apiStart < 8000)) {
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      if (page._apiJson && page._apiJson.items && page._apiJson.items.length > 0) {
+        console.log(`[Reliance Digital] API Interception succeeded. Parsing ${page._apiJson.items.length} items from JSON.`);
+        const items = [];
+        for (const item of page._apiJson.items.slice(0, 12)) {
+          try {
+            const title = item.name;
+            const price = item.price && item.price.effective && item.price.effective.min ? item.price.effective.min : null;
+            if (!title || !price) continue;
+
+            const slug = item.slug;
+            const link = slug ? `https://www.reliancedigital.in/p/${slug}` : `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
+            
+            // Image extraction from medias
+            let image = '';
+            if (item.medias && item.medias.length > 0) {
+              image = item.medias[0].url || '';
+            }
+
+            items.push({
+              title,
+              price,
+              originalPrice: price,
+              link,
+              image: imageValidator.validateImage(image) || null,
+              brand: item.brand && item.brand.name ? item.brand.name : 'Unknown',
+              platform: 'Reliance Digital',
+              inStock: true
+            });
+          } catch (err) {
+            console.error('[Reliance Digital] Error parsing JSON item:', err.message);
+          }
+        }
+        return items;
+      }
+
+      console.log('[Reliance Digital] API response not captured or empty within 8s. Falling back to DOM scraping.');
+
+      let hydrated = false;
       // Wait for React to render product details containers
-      await page.waitForSelector('a.details-container', { timeout: 10000 }).catch(() => {
-        console.log('[Reliance Digital] details-container not found within 10s');
+      await page.waitForSelector(this.containerSelector, { timeout: 10000 }).then(() => {
+        hydrated = true;
+        console.log('[Reliance Digital] React app hydrated successfully.');
+      }).catch(() => {
+        console.log('[Reliance Digital] details-container not found within 10s. Hydration status: failed or delayed.');
       });
 
       const rawProducts = await page.evaluate(() => {
@@ -72,7 +135,7 @@ class RelianceScraper extends BaseScraper {
         return items;
       });
 
-      console.log(`[Reliance Digital] Raw scrape returned ${rawProducts.length} items`);
+      console.log(`[Reliance Digital] Hydration status: ${hydrated ? 'hydrated' : 'not-hydrated'}. Raw scrape returned ${rawProducts.length} items.`);
 
       return rawProducts.map(p => ({
         ...p,
@@ -81,7 +144,7 @@ class RelianceScraper extends BaseScraper {
         platform: 'Reliance Digital',
         inStock: true
       }));
-    });
+    }, query);
   }
 }
 
