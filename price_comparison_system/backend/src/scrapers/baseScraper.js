@@ -7,6 +7,7 @@ class BaseScraper {
     this.platformName = platformName;
     this.maxRetries = 3;
     this.timeoutMs = 15000;
+    this.skipInterception = false;
   }
 
   /**
@@ -24,7 +25,7 @@ class BaseScraper {
       try {
         return await scrapeQueue.add(async () => {
           console.log(`[${this.platformName}] Attempt ${attempts} -> Navigating to ${url}`);
-          page = await browserManager.getPage(currentProxy);
+          page = await browserManager.getPage(currentProxy, this.skipInterception);
 
           console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Timeout value being used: ${this.timeoutMs}ms`);
 

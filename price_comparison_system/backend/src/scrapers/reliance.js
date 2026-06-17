@@ -1,39 +1,20 @@
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const BaseScraper = require('./baseScraper');
 const imageValidator = require('../utils/imageValidator');
-puppeteer.use(StealthPlugin());
 
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-];
-
-const browserManager = require('../utils/browserManager');
-
-class RelianceScraper {
+class RelianceScraper extends BaseScraper {
   constructor() {
-    this.platformName = 'Reliance Digital';
-    this.timeoutMs = 12000; // Needs more time — it's a React SPA
+    super('Reliance Digital');
+    this.skipInterception = true;
+    this.timeoutMs = 15000; // Client-side rendered React SPA needs ample time
   }
 
   async search(query) {
     const url = `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
-    let page = null;
-    const results = [];
 
-    try {
-      page = await browserManager.getPage(null, true);
-
-      // getPage() already configured UA, viewport, headers and request interception
-
-      console.log(`[Reliance Digital] Navigating to ${url}`);
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: this.timeoutMs }).catch(() => {
-        console.log('[Reliance Digital] Navigation timeout — attempting partial scrape');
-      });
-
-      // Wait for React to render product cards
-      await page.waitForSelector('a.product-card-image', { timeout: 5000 }).catch(() => {
-        console.log('[Reliance Digital] product-card-image not found within 5s');
+    return this.scrapeWithRetry(url, async (page) => {
+      // Wait for React to render product details containers
+      await page.waitForSelector('a.details-container', { timeout: 10000 }).catch(() => {
+        console.log('[Reliance Digital] details-container not found within 10s');
       });
 
       const rawProducts = await page.evaluate(() => {
@@ -63,9 +44,10 @@ class RelianceScraper {
             const price = parseFloat(priceMatch[0].replace(/[₹,\s]/g, ''));
             if (isNaN(price) || price <= 0) continue;
 
-            const parent    = anchor.parentElement;
-            const imgAnchor = parent ? parent.querySelector('a.product-card-image') : null;
-            const imgEl     = imgAnchor ? imgAnchor.querySelector('img') : null;
+            const parent      = anchor.parentElement;
+            const grandparent = parent ? parent.parentElement : null;
+            const imgAnchor   = grandparent ? grandparent.querySelector('a.product-card-image') : null;
+            const imgEl       = imgAnchor ? imgAnchor.querySelector('img') : null;
             let image = '';
             if (imgEl) {
               // Image priority: currentSrc > src > data-src > srcset[0]
@@ -92,21 +74,14 @@ class RelianceScraper {
 
       console.log(`[Reliance Digital] Raw scrape returned ${rawProducts.length} items`);
 
-      for (const p of rawProducts) {
-        p.image = imageValidator.validateImage(p.image) || null;
-        p.originalPrice = p.price;
-        p.platform = 'Reliance Digital';
-        p.inStock = true;
-        results.push(p);
-      }
-    } catch (err) {
-      console.warn(`[Reliance Digital] Error: ${err.message}`);
-    } finally {
-      if (page && !page.isClosed()) await page.close().catch(() => {});
-    }
-
-    console.log(`[Reliance Digital] Returning ${results.length} valid products`);
-    return results;
+      return rawProducts.map(p => ({
+        ...p,
+        image: imageValidator.validateImage(p.image) || null,
+        originalPrice: p.price,
+        platform: 'Reliance Digital',
+        inStock: true
+      }));
+    });
   }
 }
 
