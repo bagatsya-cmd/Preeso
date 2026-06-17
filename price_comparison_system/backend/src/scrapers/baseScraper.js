@@ -5,9 +5,8 @@ const scrapeQueue = require('../utils/scrapeQueue');
 class BaseScraper {
   constructor(platformName) {
     this.platformName = platformName;
-    this.maxRetries = 1;
-    // Strict timeouts: Myntra 4000ms, all others 5000ms
-    this.timeoutMs = platformName === 'Myntra' ? 4000 : 5000;
+    this.maxRetries = 3;
+    this.timeoutMs = 15000;
   }
 
   /**
@@ -27,15 +26,31 @@ class BaseScraper {
           console.log(`[${this.platformName}] Attempt ${attempts} -> Navigating to ${url}`);
           page = await browserManager.getPage(currentProxy);
 
+          console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Timeout value being used: ${this.timeoutMs}ms`);
+
+          let navigationSuccess = false;
           try {
-            const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: this.timeoutMs });
+            const response = await page.goto(url, { waitUntil: 'networkidle', timeout: this.timeoutMs });
             if (response && (response.status() === 403 || response.status() === 429 || response.status() === 503)) {
               throw new Error(`Bot detected (${response.status()})`);
             }
+            navigationSuccess = true;
+            let title = '';
+            try {
+              title = await page.title();
+            } catch (_) {}
+            console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation completed successfully. Page title: "${title}"`);
           } catch (gotoErr) {
+            let title = '';
+            try {
+              title = await page.title();
+            } catch (_) {}
+
             if (!gotoErr.message.includes('Timeout')) {
+              console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation failed. Page title: "${title}". Error: ${gotoErr.message}`);
               throw gotoErr;
             }
+            console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Navigation timed out. Page title: "${title}"`);
             console.log(`[${this.platformName}] Navigation timeout, attempting partial scrape...`);
           }
 
