@@ -14,6 +14,16 @@ class FlipkartScraper extends BaseScraper {
       
       await page.waitForSelector('div[data-id]', { timeout: 10000 }).catch(() => {});
 
+      console.log(`[Flipkart] Query: ${query}`);
+      console.log(`[Flipkart] Title: ${await page.title()}`);
+      console.log(`[Flipkart] URL: ${page.url()}`);
+
+      const html = await page.content();
+      console.log(`[Flipkart] HTML length: ${html.length}`);
+
+      const products = await page.$$('div[data-id]');
+      console.log(`[Flipkart] Found ${products.length} product containers`);
+
       const products = await page.$$('div[data-id]');
       
       for (const el of products.slice(0, 12)) {
