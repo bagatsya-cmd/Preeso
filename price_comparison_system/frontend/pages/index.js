@@ -147,8 +147,8 @@ export default function Home() {
       setLiveCount(0);
     }
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL;
-    const eventSource = new EventSource(`${apiBase}/api/stream/search?q=${encodeURIComponent(query)}`);
+    const eventSource = new EventSource(`/api/stream/search?q=${encodeURIComponent(query)}`);
+    console.log('SSE URL:', eventSource.url);
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => setSearchState('streaming');

@@ -27,6 +27,7 @@ exports.getActiveSearches = () => activeSearches;
 const SSE_MAX_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes max SSE open time
 
 exports.streamSearch = async (req, res) => {
+  console.log('[SSE RECEIVED]', req.query.q, req.ip, req.headers.host);
   activeSearches++;
   const { q: query } = req.query;
   if (!query?.trim()) {
