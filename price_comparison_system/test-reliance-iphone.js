@@ -9,7 +9,9 @@ async function run() {
     const duration = Date.now() - start;
     console.log(`Reliance Digital returned: ${results.length} products in ${duration}ms`);
     results.forEach((p, idx) => {
-      console.log(`  [${idx + 1}] "${p.title}" - ₹${p.price} (Image: ${p.image})`);
+      console.log(`  [${idx + 1}] "${p.title}" - ₹${p.price}`);
+      console.log(`      Link:  ${p.link}`);
+      console.log(`      Image: ${p.image}`);
     });
   } catch (err) {
     console.error('Error:', err.message);

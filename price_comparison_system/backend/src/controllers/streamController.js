@@ -100,10 +100,12 @@ exports.streamSearch = async (req, res) => {
       const data = typeof message === 'string' ? JSON.parse(message) : message;
 
       console.log(`[SSE REFRESH DELIVERED] queryKey="${queryKey}" resultCount=${data.products?.length || 0}`);
+      console.log(`[PIPELINE-TRACE] Stage 5a (PubSub→SSE): Received ${data.products?.length || 0} products from PubSub for queryKey="${queryKey}"`);      
       console.log(`[PUBSUB DELIVERY] queryKey="${queryKey}" source=redis`);
 
       refreshDelivered = true;
 
+      console.log(`[PIPELINE-TRACE] Stage 6a (SSE Send): Sending ${data.products.length} products to frontend via PubSub path (final=true)`);
       // Stream refreshed products to the client
       send({
         type: 'partial-results',
@@ -144,10 +146,12 @@ exports.streamSearch = async (req, res) => {
               (!cachedResultTimestamp || resultTimestamp > cachedResultTimestamp)) {
 
             console.log(`[SSE REFRESH DELIVERED] queryKey="${queryKey}" resultCount=${resDoc.products.length}`);
+            console.log(`[PIPELINE-TRACE] Stage 5b (Poll→SSE): Read ${resDoc.products.length} products from ProductResult for queryKey="${queryKey}"`);
             console.log(`[PUBSUB DELIVERY] queryKey="${queryKey}" source=polling`);
 
             refreshDelivered = true;
 
+            console.log(`[PIPELINE-TRACE] Stage 6b (SSE Send): Sending ${resDoc.products.length} products to frontend via polling path (final=true)`);
             send({
               type: 'partial-results',
               final: true,
@@ -194,10 +198,12 @@ exports.streamSearch = async (req, res) => {
 
       console.log(`[CACHE RESULT] queryKey="${queryKey}" resultCount=${cachedResult.products.length} createdAt="${new Date(cachedResult.updatedAt).toISOString()}"`);
       console.log(`[SSE CACHE SERVED] queryKey="${queryKey}" resultCount=${cachedResult.products.length}`);
+      console.log(`[PIPELINE-TRACE] Stage 5c (Cache→SSE): Serving ${cachedResult.products.length} cached products for queryKey="${queryKey}" (age: ${Math.round(age / 1000)}s)`);
       console.log("cacheHitKey", queryKey);
       console.log(`[SSE] Cache HIT for "${queryKey}" (Age: ${Math.round(age / 60000)}m)`);
 
       // Send cached data immediately as non-final results
+      console.log(`[PIPELINE-TRACE] Stage 6c (SSE Send): Sending ${cachedResult.products.length} CACHED products to frontend (final=false)`);
       send({
         type: 'partial-results',
         final: false,

@@ -44,7 +44,7 @@ class RelianceScraper extends BaseScraper {
             if (!title || !price) continue;
 
             const slug = item.slug;
-            const link = slug ? `https://www.reliancedigital.in/p/${slug}` : `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
+            const link = slug ? `https://www.reliancedigital.in/product/${slug}` : `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
             
             // Image extraction from medias
             let image = '';

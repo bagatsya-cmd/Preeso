@@ -27,6 +27,7 @@ async function runAggregation(job) {
   // Fetch raw scraped products for queryKey
   const rawScraped = await ScrapedProduct.find({ queryKey }).lean();
   console.log(`[AggregatorWorker] Found ${rawScraped.length} raw items in scraped_products`);
+  console.log(`[PIPELINE-TRACE] Stage 1 (DB Read): ${rawScraped.length} raw scraped products for queryKey="${queryKey}"`);
   
   // Map raw DB docs into the format expected by matchingService
   const formattedRaw = rawScraped.map((doc) => ({
@@ -41,6 +42,7 @@ async function runAggregation(job) {
 
   // Perform fuzzy matching and grouping
   const groupedCards = matchingService.mergeProducts(formattedRaw, query);
+  console.log(`[PIPELINE-TRACE] Stage 2 (mergeProducts output): ${groupedCards.length} cards returned by matchingService`);
   
   // Compute aggregated fields
   const lowestPrice = groupedCards.length > 0
@@ -51,7 +53,7 @@ async function runAggregation(job) {
     : null;
 
   // Save/Upsert grouped results to product_results
-  await ProductResult.findOneAndUpdate(
+  const savedResult = await ProductResult.findOneAndUpdate(
     { queryKey },
     {
       queryKey,
@@ -62,16 +64,19 @@ async function runAggregation(job) {
     },
     { upsert: true, new: true }
   );
+  console.log(`[PIPELINE-TRACE] Stage 3 (DB Save): ${savedResult?.products?.length ?? 'N/A'} products saved to product_results for queryKey="${queryKey}"`);
 
   console.log("aggregationFinished");
   console.log(`[AggregatorWorker] Grouped results saved to product_results.`);
 
   // Publish update event via Pub/Sub for active SSE connections
-  await pubSub.publish(`search:update:${queryKey}`, {
+  const pubSubPayload = {
     type: 'partial-results',
     products: groupedCards,
     final: true
-  });
+  };
+  console.log(`[PIPELINE-TRACE] Stage 4 (PubSub Emit): Publishing ${groupedCards.length} products to channel "search:update:${queryKey}"`);  
+  await pubSub.publish(`search:update:${queryKey}`, pubSubPayload);
   
   console.log("PubSub emitted");
   console.log(`[AggregatorWorker] Published update event for queryKey: "${queryKey}"`);

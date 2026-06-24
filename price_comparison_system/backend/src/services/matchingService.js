@@ -407,6 +407,59 @@ class MatchingService {
   }
 
   mergeProducts(rawProducts, originalQuery = '') {
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  DEBUG_RAW_MODE — Bypass ALL filtering, matching, grouping, merging.   ║
+    // ║  Every scraped product is returned as its own individual card.          ║
+    // ║  Set DEBUG_RAW_MODE=true in .env to enable.                            ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
+    if (process.env.DEBUG_RAW_MODE === 'true') {
+      console.log(`\n${'═'.repeat(70)}`);
+      console.log(`[DEBUG_RAW_MODE] ⚠️  ALL FILTERING/MATCHING/GROUPING BYPASSED`);
+      console.log(`[DEBUG_RAW_MODE] Raw scraped products: ${rawProducts.length}`);
+      console.log(`${'═'.repeat(70)}`);
+
+      const rawCards = rawProducts.map((product, index) => {
+        const primaryUrl = product.link || (product.stores && product.stores[0]?.url);
+        const canonicalPlat = product.platform || (product.stores && product.stores[0]?.storeName);
+        const stableId = generateStableId(primaryUrl, product.title, canonicalPlat);
+
+        return {
+          _id:        `${stableId}_raw_${index}`,
+          baseName:   product.title || 'Untitled',
+          brand:      product.brand || this.getBrand(product.title) || 'Unknown',
+          category:   product.category || 'General',
+          imageUrl:   product.image || null,
+          lowestPrice: product.price || 0,
+          rating:     product.rating || null,
+          stores: [{
+            storeName:     product.platform || 'Unknown',
+            originalName:  product.title || 'Untitled',
+            price:         product.price || 0,
+            originalPrice: product.originalPrice || product.price || 0,
+            discount:      (product.originalPrice && product.originalPrice > product.price)
+                             ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+                             : 0,
+            url:           product.link || '',
+            image:         product.image || null,
+            inStock:       product.availability !== undefined ? product.availability : true,
+            rating:        product.rating || null,
+            reviews:       product.reviews || null,
+          }],
+        };
+      });
+
+      console.log(`[DEBUG_RAW_MODE] Products returned to frontend: ${rawCards.length}`);
+      if (rawCards.length !== rawProducts.length) {
+        console.error(`[DEBUG_RAW_MODE] ❌ MISMATCH! Raw=${rawProducts.length} Returned=${rawCards.length}`);
+      } else {
+        console.log(`[DEBUG_RAW_MODE] ✅ MATCH CONFIRMED: ${rawProducts.length} scraped → ${rawCards.length} returned`);
+      }
+      console.log(`${'═'.repeat(70)}\n`);
+
+      return rawCards;
+    }
+    // ── END DEBUG_RAW_MODE ──────────────────────────────────────────────────────
+
     const mergedList  = [];
     const queryIntent = this.detectQueryIntent(originalQuery);
     const isFashion   = (queryIntent === 'fashion' || queryIntent === 'beauty');
