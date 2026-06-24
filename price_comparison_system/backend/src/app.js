@@ -30,6 +30,7 @@ const { startAlertService }   = require('./services/alertService');
 const refreshScheduler         = require('./services/refreshScheduler');
 const precacher                = require('./workers/precacher');
 const browserManager           = require('./utils/browserManager');
+const { stopWorkers }          = require('./utils/workerManager');
 
 startAlertService();
 refreshScheduler.start();
@@ -46,6 +47,7 @@ async function shutdown(signal) {
   console.log(`\n[App] Received ${signal} — shutting down gracefully...`);
   refreshScheduler.stop();
   precacher.stop();
+  stopWorkers();
   await browserManager.closeBrowser();
   console.log('[App] Shutdown complete.');
   process.exit(0);

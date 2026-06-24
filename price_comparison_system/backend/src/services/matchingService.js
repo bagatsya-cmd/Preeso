@@ -100,19 +100,19 @@ class MatchingService {
 
     // Check for explicit accessory intent
     const hasAccessoryIntent = tokens.some(t => ACCESSORY_INTENT_WORDS.has(t)) ||
-      [...ACCESSORY_INTENT_WORDS].some(term => q.includes(term));
+      [...ACCESSORY_INTENT_WORDS].some(term => new RegExp(`\\b${term}\\b`, 'i').test(q));
 
     // Check electronics intent
     const hasElectronicsIntent = tokens.some(t => ELECTRONICS_INTENT_WORDS.has(t)) ||
-      [...ELECTRONICS_INTENT_WORDS].some(term => q.includes(term));
+      [...ELECTRONICS_INTENT_WORDS].some(term => new RegExp(`\\b${term}\\b`, 'i').test(q));
 
     // Check fashion intent
     const hasFashionIntent = tokens.some(t => FASHION_INTENT_WORDS.has(t)) ||
-      [...FASHION_INTENT_WORDS].some(term => q.includes(term));
+      [...FASHION_INTENT_WORDS].some(term => new RegExp(`\\b${term}\\b`, 'i').test(q));
 
     // Check beauty intent
     const hasBeautyIntent = tokens.some(t => BEAUTY_INTENT_WORDS.has(t)) ||
-      [...BEAUTY_INTENT_WORDS].some(term => q.includes(term));
+      [...BEAUTY_INTENT_WORDS].some(term => new RegExp(`\\b${term}\\b`, 'i').test(q));
 
     // Electronics + accessory terms = accessories intent (e.g. "ipad cover")
     if (hasElectronicsIntent && hasAccessoryIntent) return 'accessories';
@@ -183,7 +183,7 @@ class MatchingService {
     if (queryIntent === 'fashion' || queryIntent === 'beauty') {
       // Reject pure electronics from fashion queries (e.g. cables showing up in saree searches)
       const isElectronicsProduct = [...ELECTRONICS_INTENT_WORDS].some(kw =>
-        (product.title || '').toLowerCase().includes(kw)
+        new RegExp(`\\b${kw}\\b`, 'i').test(product.title || '')
       );
       if (isElectronicsProduct && !FASHION_PLATFORMS.has(product.platform)) {
         if (process.env.DEBUG_MATCHING === 'true') console.log(`[MATCH-REJECT] reason=electronics-in-fashion query_intent=${queryIntent} title="${product.title}"`);
@@ -220,7 +220,8 @@ class MatchingService {
     const qNorm = this.normalizeString(query);
     const tNorm = this.normalizeString(title);
     for (const term of ACCESSORY_BLACKLIST) {
-      if (tNorm.includes(term) && !qNorm.includes(term)) return true;
+      const regex = new RegExp(`\\b${term}\\b`, 'i');
+      if (regex.test(tNorm) && !new RegExp(`\\b${term}\\b`, 'i').test(qNorm)) return true;
     }
     return false;
   }
@@ -314,6 +315,97 @@ class MatchingService {
     return score;
   }
 
+  getBrand(title) {
+    if (!title) return null;
+    const brands = ['apple', 'samsung', 'oneplus', 'google', 'xiaomi', 'redmi', 'realme', 'oppo', 'vivo', 'motorola', 'lenovo', 'hp', 'dell', 'asus', 'acer', 'nothing', 'sony', 'boat', 'noise', 'boult', 'reliance', 'spigen'];
+    const lowerTitle = title.toLowerCase();
+    for (const b of brands) {
+      if (new RegExp(`\\b${b}\\b`, 'i').test(lowerTitle)) {
+        return b;
+      }
+    }
+    return null;
+  }
+
+  getColor(title) {
+    if (!title) return null;
+    const match = title.match(COLOUR_WORDS);
+    return match ? match[0].toLowerCase() : null;
+  }
+
+  getModelModifiers(title) {
+    if (!title) return new Set();
+    const lower = title.toLowerCase();
+    const modifierList = ['pro', 'max', 'plus', 'mini', 'ultra', 'fe', 'lite', 'neo', 'play', 'active', 'zoom', 'fold', 'flip'];
+    const modifiers = new Set();
+    for (const m of modifierList) {
+      if (new RegExp(`\\b${m}\\b`, 'i').test(lower)) {
+        modifiers.add(m);
+      }
+    }
+    return modifiers;
+  }
+
+  areSameElectronicsModel(titleA, titleB) {
+    // 1. Brand match
+    const brandA = this.getBrand(titleA);
+    const brandB = this.getBrand(titleB);
+    if (brandA && brandB && brandA !== brandB) {
+      return false; // brand mismatch
+    }
+
+    // 2. Model modifier match
+    const modsA = this.getModelModifiers(titleA);
+    const modsB = this.getModelModifiers(titleB);
+    if (modsA.size !== modsB.size || [...modsA].some(m => !modsB.has(m))) {
+      return false; // model modifier mismatch
+    }
+
+    // 3. Storage/RAM mismatch
+    const tokA = this.tokenize(this.normalizeString(titleA));
+    const tokB = this.tokenize(this.normalizeString(titleB));
+    if (tokA.storage !== tokB.storage) {
+      return false;
+    }
+    if (tokA.ram !== tokB.ram) {
+      return false;
+    }
+
+    // 4. Color mismatch
+    const colorA = this.getColor(titleA);
+    const colorB = this.getColor(titleB);
+    if (colorA !== colorB) {
+      return false;
+    }
+
+    return true;
+  }
+
+  isExactTokenMatch(product, query) {
+    if (!query) return true;
+    const normalizedQuery = query.toLowerCase().trim();
+    const queryTokens = normalizedQuery.split(/\s+/).filter(t => t.length > 0 && !STOP_WORDS.has(t));
+    if (queryTokens.length === 0) return true;
+
+    const titleLower = (product.title || '').toLowerCase();
+    const pModel = (this.tokenize(this.normalizeString(product.title)).model || '').toLowerCase();
+
+    return queryTokens.every(token => {
+      if (titleLower.includes(token)) return true;
+      if (pModel.includes(token)) return true;
+
+      const cleanToken = token.replace(/[^\w]/g, '');
+      if (cleanToken) {
+        const cleanTitle = titleLower.replace(/[^\w]/g, '');
+        const cleanModel = pModel.replace(/[^\w]/g, '');
+        if (cleanTitle.includes(cleanToken) || cleanModel.includes(cleanToken)) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
   mergeProducts(rawProducts, originalQuery = '') {
     const mergedList  = [];
     const queryIntent = this.detectQueryIntent(originalQuery);
@@ -322,8 +414,8 @@ class MatchingService {
 
     if (process.env.DEBUG_MATCHING === 'true') console.log(`[MATCH] Query="${originalQuery}" Intent=${queryIntent} Category=${category} Raw=${rawProducts.length}`);
 
-    // NEW THRESHOLDS: fashion/beauty = 0.88, electronics = 0.72. Old 0.55 removed completely.
-    const threshold = isFashion ? 0.88 : 0.72;
+    // Lower similarity threshold from ~0.85 -> 0.65-0.75
+    const threshold = isFashion ? 0.75 : 0.65;
 
     let requireExactColorMatch = false;
     let requireExactTypeMatch = false;
@@ -332,30 +424,99 @@ class MatchingService {
       requireExactTypeMatch = true;
     }
 
-    const validProducts = rawProducts.filter(p => {
-      if (!p.title || !p.price) return false;
-      if (this.isFashionBlacklisted(p.title)) return false;
-
-      // ── Phase 12: Cross-category contamination guard ───────────────────────
+    // Filter basic valid products (basic validation checks)
+    const basicFiltered = [];
+    for (const p of rawProducts) {
+      if (!p.title || !p.price) {
+        console.log(`[REMOVE] title="${p.title || 'N/A'}" retailer="${p.platform || p.source || 'N/A'}" price=${p.price || 0} reason="Missing title or price"`);
+        continue;
+      }
+      if (this.isFashionBlacklisted(p.title)) {
+        console.log(`[REMOVE] title="${p.title}" retailer="${p.platform || p.source}" price=${p.price} reason="Fashion blacklisted"`);
+        continue;
+      }
       if (originalQuery && this.isCrossCategoryContaminant(p, queryIntent)) {
-        return false;
+        console.log(`[REMOVE] title="${p.title}" retailer="${p.platform || p.source}" price=${p.price} reason="Cross-category contaminant"`);
+        continue;
       }
-
-      // ── Phase 12: Hard accessory rejection for electronics intent ──────────
       if (queryIntent === 'electronics' && this.isAccessoryProduct(p.title)) {
-        if (process.env.DEBUG_MATCHING === 'true') console.log(`[MATCH-REJECT] reason=accessory-mismatch query="${originalQuery}" title="${p.title}"`);
-        return false;
+        console.log(`[REMOVE] title="${p.title}" retailer="${p.platform || p.source}" price=${p.price} reason="Accessory mismatch"`);
+        continue;
       }
+      if (this.isAccessory(originalQuery, p.title)) {
+        console.log(`[REMOVE] title="${p.title}" retailer="${p.platform || p.source}" price=${p.price} reason="Accessory blacklist mismatch"`);
+        continue;
+      }
+      basicFiltered.push(p);
+    }
 
-      if (this.isAccessory(originalQuery, p.title)) return false;
-      if (originalQuery && !this.isRelevant(originalQuery, p.title)) return false;
-      return true;
-    });
+    let candidateProducts = [];
+    let isFuzzyFallback = false;
+    let exactMatchCount = 0;
 
-    if (process.env.DEBUG_MATCHING === 'true') console.log(`[MATCH] After filtering: ${validProducts.length} valid products (rejected ${rawProducts.length - validProducts.length})`);
+    // Tokenize query
+    const normalizedQuery = originalQuery.toLowerCase().trim().replace(/\s+/g, ' ');
+    const queryKey = normalizedQuery.replace(/\s+/g, '_');
+    const queryTokens = normalizedQuery.split(/\s+/).filter(t => t.length > 0 && !STOP_WORDS.has(t));
+
+    if (queryTokens.length > 0) {
+      const tier1Products = basicFiltered.filter(p => this.isExactTokenMatch(p, originalQuery));
+      exactMatchCount = tier1Products.length;
+      if (tier1Products.length > 0) {
+        candidateProducts = tier1Products;
+        isFuzzyFallback = false;
+        
+        // Log products filtered out in Tier 1
+        const tier1Set = new Set(tier1Products);
+        for (const p of basicFiltered) {
+          if (!tier1Set.has(p)) {
+            console.log(`[REMOVE] title="${p.title}" retailer="${p.platform || p.source}" price=${p.price} reason="Failed Tier 1 exact token match"`);
+          }
+        }
+
+        if (process.env.DEBUG_MATCHING === 'true') {
+          console.log(`[MATCH] Tier 1 Exact Matches found: ${tier1Products.length} items. Skipping fuzzy fallback.`);
+        }
+      } else {
+        // Tier 2: Fuzzy matching fallback - filter by relevance first
+        candidateProducts = basicFiltered.filter(p => {
+          const relevant = originalQuery ? this.isRelevant(originalQuery, p.title) : true;
+          if (!relevant) {
+            console.log(`[REMOVE] title="${p.title}" retailer="${p.platform || p.source}" price=${p.price} reason="Failed Tier 2 relevance check"`);
+          }
+          return relevant;
+        });
+        isFuzzyFallback = true;
+        
+        // Log products filtered out in Tier 2
+        const candidateSet = new Set(candidateProducts);
+        for (const p of basicFiltered) {
+          if (!candidateSet.has(p)) {
+            console.log(`[REMOVE] title="${p.title}" retailer="${p.platform || p.source}" price=${p.price} reason="Failed Tier 2 relevance check"`);
+          }
+        }
+
+        if (process.env.DEBUG_MATCHING === 'true') {
+          console.log(`[MATCH] No Tier 1 Exact Matches found. Falling back to Tier 2 Fuzzy Matching.`);
+        }
+      }
+    } else {
+      candidateProducts = basicFiltered;
+    }
+
+    const scrapedCount = rawProducts.length;
+    const finalCountEstimate = mergedList.length; // Will compute actual below
+    const dedupedCount = scrapedCount - candidateProducts.length;
+
+    console.log("normalizedQuery", normalizedQuery);
+    console.log("queryKey", queryKey);
+    console.log("matchedProductsCount", candidateProducts.length);
+    console.log("rejectedProductsCount", rawProducts.length - candidateProducts.length);
+
+    if (process.env.DEBUG_MATCHING === 'true') console.log(`[MATCH] After filtering: ${candidateProducts.length} valid products (rejected ${rawProducts.length - candidateProducts.length})`);
 
     // Sort: shorter titles first = more canonical base names
-    const sortedRaw = [...validProducts].sort((a, b) => a.title.length - b.title.length);
+    const sortedRaw = [...candidateProducts].sort((a, b) => a.title.length - b.title.length);
 
     for (const product of sortedRaw) {
       let foundMatch = false;
@@ -374,14 +535,31 @@ class MatchingService {
         if (
           platformA !== platformB &&
           category === 'fashion' &&
-          score < 0.92
+          score < 0.75
         ) {
+          console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Different store platforms mismatch"`);
           if (process.env.DEBUG_MATCHING === 'true') console.log(`[REJECTED] "${a.title}" x "${b.title}" | reason=different platforms score=${score.toFixed(3)}`);
           if (process.env.DEBUG_MATCHING === 'true') console.log(`[NO MATCH] "${a.title}" x "${b.title}" | score=${score.toFixed(3)}`);
           continue;
         }
 
+        // Brand and specs check for electronics/general
+        if (category !== 'fashion') {
+          const brandMatch = this.getBrand(merged.baseName) === this.getBrand(product.title) || !this.getBrand(merged.baseName) || !this.getBrand(product.title);
+          const specsMatch = this.areSameElectronicsModel(merged.baseName, product.title);
+          
+          if (!brandMatch) {
+            console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Brand mismatch (${this.getBrand(product.title)} vs ${this.getBrand(merged.baseName)})"`);
+            continue;
+          }
+          if (!specsMatch) {
+            console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Specs or variant mismatch"`);
+            continue;
+          }
+        }
+
         if (score < threshold) {
+          console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Below similarity threshold (${score.toFixed(3)} < ${threshold})"`);
           if (process.env.DEBUG_MATCHING === 'true') console.log(`[REJECTED] "${a.title}" x "${b.title}" | reason=below threshold (${score.toFixed(3)} < ${threshold})`);
           if (process.env.DEBUG_MATCHING === 'true') console.log(`[NO MATCH] "${a.title}" x "${b.title}" | score=${score.toFixed(3)}`);
           continue;
@@ -393,6 +571,7 @@ class MatchingService {
           const brandA = (merged.brand || '').toLowerCase().trim();
           const brandB = (product.brand || '').toLowerCase().trim();
           if (brandA && brandB && brandA !== 'unknown' && brandB !== 'unknown' && brandA !== brandB) {
+            console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Brand mismatch (${brandB} vs ${brandA})"`);
             if (process.env.DEBUG_MATCHING === 'true') console.log(`[REJECTED] "${a.title}" x "${b.title}" | reason=brand mismatch (${brandA} vs ${brandB})`);
             if (process.env.DEBUG_MATCHING === 'true') console.log(`[NO MATCH] "${a.title}" x "${b.title}" | score=${score.toFixed(3)}`);
             continue;
@@ -403,6 +582,7 @@ class MatchingService {
             const colorA = (merged.baseName.match(COLOUR_WORDS) || [])[0]?.toLowerCase() || '';
             const colorB = (product.title.match(COLOUR_WORDS) || [])[0]?.toLowerCase() || '';
             if (colorA !== colorB) {
+              console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Color mismatch (${colorB || 'none'} vs ${colorA || 'none'})"`);
               if (process.env.DEBUG_MATCHING === 'true') console.log(`[REJECTED] "${a.title}" x "${b.title}" | reason=color mismatch (${colorA || 'none'} vs ${colorB || 'none'})`);
               if (process.env.DEBUG_MATCHING === 'true') console.log(`[NO MATCH] "${a.title}" x "${b.title}" | score=${score.toFixed(3)}`);
               continue;
@@ -413,6 +593,7 @@ class MatchingService {
           const sizeA = (merged.baseName.match(SIZE_WORDS) || [])[0]?.toLowerCase().replace(/\s/g, '') || '';
           const sizeB = (product.title.match(SIZE_WORDS) || [])[0]?.toLowerCase().replace(/\s/g, '') || '';
           if (sizeA !== sizeB) {
+            console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Size mismatch (${sizeB || 'none'} vs ${sizeA || 'none'})"`);
             if (process.env.DEBUG_MATCHING === 'true') console.log(`[REJECTED] "${a.title}" x "${b.title}" | reason=size mismatch (${sizeA || 'none'} vs ${sizeB || 'none'})`);
             if (process.env.DEBUG_MATCHING === 'true') console.log(`[NO MATCH] "${a.title}" x "${b.title}" | score=${score.toFixed(3)}`);
             continue;
@@ -432,6 +613,7 @@ class MatchingService {
               if (normB.includes(t)) { typeB = t; break; }
             }
             if (typeA !== typeB) {
+              console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="Type mismatch (${typeB || 'none'} vs ${typeA || 'none'})"`);
               if (process.env.DEBUG_MATCHING === 'true') console.log(`[REJECTED] "${a.title}" x "${b.title}" | reason=product type mismatch (${typeA || 'none'} vs ${typeB || 'none'})`);
               if (process.env.DEBUG_MATCHING === 'true') console.log(`[NO MATCH] "${a.title}" x "${b.title}" | score=${score.toFixed(3)}`);
               continue;
@@ -457,6 +639,7 @@ class MatchingService {
           const tokensB = cleanTokens(product.title, brandB2);
           const intersection = new Set([...tokensA].filter(x => tokensB.has(x)));
           if (tokensA.size > 0 && tokensB.size > 0 && intersection.size === 0) {
+            console.log(`[MERGE-REJECT] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} reason="No major common tokens"`);
             if (process.env.DEBUG_MATCHING === 'true') console.log(`[REJECTED] "${a.title}" x "${b.title}" | reason=no common major title tokens`);
             if (process.env.DEBUG_MATCHING === 'true') console.log(`[NO MATCH] "${a.title}" x "${b.title}" | score=${score.toFixed(3)}`);
             continue;
@@ -464,6 +647,8 @@ class MatchingService {
         }
 
         // Successfully merged!
+        console.log(`[MERGE] source="${product.title}" target="${merged.baseName}" score=${score.toFixed(3)} key="${merged._id}"`);
+        console.log(`[GROUP] cardId="${merged._id}" title="${product.title}" retailer="${product.platform || product.source}" groupingKey="${merged._id}"`);
         if (process.env.DEBUG_MATCHING === 'true') console.log(`[MERGED] "${a.title}" + "${b.title}" | score=${score.toFixed(3)}`);
 
         const existingStoreIdx = merged.stores.findIndex(s => s.storeName === product.platform);
@@ -498,10 +683,13 @@ class MatchingService {
         const primaryUrl = product.link || (product.stores && product.stores[0]?.url);
         const canonicalPlat = product.platform || (product.stores && product.stores[0]?.storeName);
         const stableId = generateStableId(primaryUrl, product.title, canonicalPlat);
+        
+        console.log(`[GROUP] cardId="${stableId}" title="${product.title}" retailer="${product.platform || product.source}" groupingKey="${stableId}"`);
+
         mergedList.push({
           _id:        stableId,
           baseName:   product.title,
-          brand:      product.brand || 'Unknown',
+          brand:      product.brand || this.getBrand(product.title) || 'Unknown',
           category:   product.category || (isFashion ? 'Fashion' : 'General'),
           imageUrl:   product.image || null,
           lowestPrice: product.price,
@@ -522,6 +710,19 @@ class MatchingService {
         });
       }
     }
+    
+    const finalCount = mergedList.length;
+    const groupedCount = candidateProducts.length - finalCount;
+
+    console.log("scrapedCount", scrapedCount);
+    console.log("exactMatchCount", exactMatchCount);
+    console.log("dedupedCount", dedupedCount);
+    console.log("groupedCount", groupedCount);
+    console.log("finalCount", finalCount);
+
+    const filteredCount = scrapedCount - candidateProducts.length;
+    console.log("productsFiltered", filteredCount);
+    console.log(`[MATCH] scrapedCount: ${scrapedCount} | filteredCount: ${filteredCount} | finalCount: ${mergedList.length}`);
 
     console.log(`[MATCH] Final unique products: ${mergedList.length}`);
     return mergedList;

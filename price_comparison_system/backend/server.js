@@ -3,11 +3,13 @@ const cron = require('node-cron');
 require('dotenv').config();
 
 const app = require('./src/app');
+const { startWorkers } = require('./src/utils/workerManager');
 
 // Connect MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
+    startWorkers();
     // Only start standard server if NOT on Vercel
     if (!process.env.VERCEL) {
         startServer();

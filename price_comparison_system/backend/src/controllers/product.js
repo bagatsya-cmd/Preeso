@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 const Product = require('../models/product');
 const User = require('../models/User');
-const { searchAllPlatforms, findDemoProducts } = require('../services/scraper');
+const ProductResult = require('../models/productResult');
+const ScrapeJob = require('../models/scrapeJob');
+const { normalizeQuery } = require('../utils/queryNormalizer');
 
 // Helper to generate 30-day price history for a store
 function generatePriceHistory(storeName, currentPrice) {
@@ -21,9 +23,6 @@ function generatePriceHistory(storeName, currentPrice) {
   return history;
 }
 
-const { searchQueue } = require('../queues/searchQueue');
-const { processSearchJob } = require('../workers/searchWorker'); // Directly calling for now since BullMQ isn't active
-
 // GET /api/products/search?query=
 exports.searchProducts = async (req, res) => {
   try {
@@ -32,73 +31,50 @@ exports.searchProducts = async (req, res) => {
       return res.json([]);
     }
 
-    // 1. Check DB cache (fresh within 1 hour)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const cached = await Product.find({
-      searchQuery: { $regex: query, $options: 'i' },
-      lastUpdated: { $gte: oneHourAgo }
-    }).limit(10);
+    const normalizedQuery = normalizeQuery(query);
+    const queryKey = normalizedQuery.replace(/\s+/g, '_');
 
-    if (cached.length > 0) {
-      console.log(`[Search] Cache hit for "${query}"`);
-      return res.json(cached);
-    }
-
-    // 2. Enqueue scraping job
-    console.log(`[Search] Cache miss. Enqueuing scraping job for "${query}"`);
-    const job = await searchQueue.add('scrape', { query, jobId: Math.random().toString(36).substring(7) });
-
-    // Note: In a full production SSE architecture, we would return `202 Accepted` with the Job ID here.
-    // res.status(202).json({ jobId: job.id, message: 'Scraping started' });
+    // 1. Check DB cache
+    const cachedResult = await ProductResult.findOne({ queryKey }).lean();
+    console.log(`[DB RESULT] queryKey="${queryKey}" productResultsCount=${cachedResult?.products?.length || 0}`);
     
-    // For current frontend compatibility, we will await the worker processing directly.
-    const mergedProducts = await processSearchJob({ data: { query, jobId: job.id } });
-
-    if (!mergedProducts || mergedProducts.length === 0) {
-      // 3. Fall back to any existing stale DB records if scraper fails completely
-      const existing = await Product.find({ name: { $regex: query, $options: 'i' } }).limit(10);
-      return res.json(existing);
+    const STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000;
+    let isStale = true;
+    if (cachedResult) {
+      console.log(`[CACHE RESULT] queryKey="${queryKey}" resultCount=${cachedResult.products?.length || 0} createdAt="${new Date(cachedResult.updatedAt).toISOString()}"`);
+      console.log("cacheHitKey", queryKey);
+      const age = Date.now() - new Date(cachedResult.updatedAt).getTime();
+      isStale = age > STALE_THRESHOLD_MS;
     }
 
-    // 4. Upsert products into MongoDB
-    const saved = [];
-    for (const item of mergedProducts) {
-      const priceHistory = [];
-      for (const store of item.stores) {
-        priceHistory.push(...generatePriceHistory(store.storeName, store.price));
-      }
+    // 2. If missing or stale, trigger background scraper job
+    if (!cachedResult || isStale) {
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+      const activeJob = await ScrapeJob.findOne({
+        queryKey,
+        status: { $in: ['pending', 'scraping', 'scraped', 'aggregating'] },
+        updatedAt: { $gte: fifteenMinutesAgo }
+      });
+      console.log(`[JOB CHECK] queryKey="${queryKey}" jobFound=${activeJob ? true : false} jobStatus="${activeJob ? activeJob.status : 'none'}"`);
 
-      const existing = await Product.findOne({ name: item.baseName });
-      if (existing) {
-        existing.stores = item.stores;
-        existing.searchQuery = query.toLowerCase();
-        existing.priceHistory.push(...priceHistory.slice(-4));
-        existing.lastUpdated = Date.now();
-        await existing.save();
-        saved.push(existing);
-      } else {
-        const product = new Product({
-          name: item.baseName,
-          brand: item.brand || 'Unknown',
-          category: item.category,
-          description: `${item.baseName}`,
-          image: item.imageUrl,
-          stores: item.stores,
-          searchQuery: query.toLowerCase(),
-          tags: [],
-          priceHistory
+      if (!activeJob) {
+        console.log(`[API Search] Enqueuing background job for queryKey: "${queryKey}"`);
+        await ScrapeJob.create({
+          query: normalizedQuery,
+          queryKey,
+          status: 'pending'
         });
-        await product.save();
-        saved.push(product);
       }
     }
 
-    res.json(saved);
+    // 3. Immediately return cached products (or empty array if none)
+    return res.json(cachedResult ? cachedResult.products : []);
   } catch (err) {
-    console.error('[Search] Error:', err);
+    console.error('[API Search] Error:', err);
     res.status(500).json({ message: 'Server error during search pipeline' });
   }
 };
+
 
 // GET /api/products/:id
 exports.getProductById = async (req, res) => {
