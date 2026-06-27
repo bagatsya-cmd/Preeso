@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
+    env: {
+        ENABLE_AMAZON: process.env.ENABLE_AMAZON || 'false',
+    },
     async rewrites() {
         const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         return [

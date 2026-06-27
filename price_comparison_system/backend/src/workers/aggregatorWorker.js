@@ -25,7 +25,10 @@ async function runAggregation(job) {
   console.log(`[AggregatorWorker] Aggregating raw results for queryKey: "${queryKey}"`);
   
   // Fetch raw scraped products for queryKey
-  const rawScraped = await ScrapedProduct.find({ queryKey }).lean();
+  let rawScraped = await ScrapedProduct.find({ queryKey }).lean();
+  if (process.env.ENABLE_AMAZON !== 'true') {
+    rawScraped = rawScraped.filter(doc => doc.source?.toLowerCase() !== 'amazon');
+  }
   console.log(`[AggregatorWorker] Found ${rawScraped.length} raw items in scraped_products`);
   console.log(`[PIPELINE-TRACE] Stage 1 (DB Read): ${rawScraped.length} raw scraped products for queryKey="${queryKey}"`);
   

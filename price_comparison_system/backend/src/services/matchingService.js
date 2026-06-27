@@ -787,21 +787,30 @@ class MatchingService {
    * given query intent. Used by streamController to skip irrelevant scrapers.
    */
   getEnabledPlatforms(queryIntent) {
+    const enableAmazon = process.env.ENABLE_AMAZON === 'true';
     switch (queryIntent) {
       case 'electronics':
-        return new Set(['Amazon', 'Flipkart', 'Reliance Digital']);
+        return enableAmazon
+          ? new Set(['Amazon', 'Flipkart', 'Reliance Digital'])
+          : new Set(['Flipkart', 'Reliance Digital']);
 
       case 'fashion':
       case 'beauty':
-        return new Set(['AJIO', 'Myntra', 'Nykaa', 'Amazon', 'Flipkart']);
+        return enableAmazon
+          ? new Set(['AJIO', 'Myntra', 'Nykaa', 'Amazon', 'Flipkart'])
+          : new Set(['AJIO', 'Myntra', 'Nykaa', 'Flipkart']);
 
       case 'accessories':
         // All platforms allowed for accessory queries
-        return new Set(['Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra']);
+        return enableAmazon
+          ? new Set(['Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra'])
+          : new Set(['Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra']);
 
       default:
         // General — all platforms
-        return new Set(['Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra']);
+        return enableAmazon
+          ? new Set(['Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra'])
+          : new Set(['Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra']);
     }
   }
 }

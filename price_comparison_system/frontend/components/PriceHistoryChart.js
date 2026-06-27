@@ -6,8 +6,9 @@ import { Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
+const enableAmazon = process.env.ENABLE_AMAZON === 'true';
 const STORE_PALETTE = {
-  Amazon:           { line: '#ff9900', fill: 'rgba(255,153,0,0.08)' },
+  ...(enableAmazon ? { Amazon:           { line: '#ff9900', fill: 'rgba(255,153,0,0.08)' } } : {}),
   Flipkart:         { line: '#2874f0', fill: 'rgba(40,116,240,0.08)' },
   Myntra:           { line: '#ff3f6c', fill: 'rgba(255,63,108,0.08)' },
   'Reliance Digital': { line: '#e11d48', fill: 'rgba(225,29,72,0.08)' },

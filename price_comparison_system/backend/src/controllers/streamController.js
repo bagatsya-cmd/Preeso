@@ -4,6 +4,24 @@ const pubSub = require('../utils/pubSub');
 const { normalizeQuery } = require('../utils/queryNormalizer');
 const logger = require('../utils/logger');
 
+function sanitizeProducts(products) {
+  if (!products) return [];
+  if (process.env.ENABLE_AMAZON === 'true') {
+    return products;
+  }
+  return products
+    .map(product => {
+      const filteredStores = (product.stores || []).filter(s => s.storeName !== 'Amazon');
+      if (filteredStores.length === 0) return null;
+      return {
+        ...product,
+        stores: filteredStores,
+        lowestPrice: Math.min(...filteredStores.map(s => s.price))
+      };
+    })
+    .filter(Boolean);
+}
+
 // ── SSE utilities ─────────────────────────────────────────────────────────────
 function makeSend(res, alive) {
   return (typeOrObj, payload = {}) => {
@@ -106,18 +124,19 @@ exports.streamSearch = async (req, res) => {
 
       refreshDelivered = true;
 
-      console.log(`[PIPELINE-TRACE] Stage 6a (SSE Send): Sending ${data.products.length} products to frontend via PubSub path (final=true)`);
+      const sanitized = sanitizeProducts(data.products || []);
+      console.log(`[PIPELINE-TRACE] Stage 6a (SSE Send): Sending ${sanitized.length} products to frontend via PubSub path (final=true)`);
       // Stream refreshed products to the client
       send({
         type: 'partial-results',
         final: true,
-        products: data.products
+        products: sanitized
       });
 
       // Signal completion
       const totalMs = Date.now() - searchStart;
-      send({ type: 'complete', final: true, totalUnique: data.products.length, totalMs });
-      send({ type: 'completed', totalUnique: data.products.length, totalMs });
+      send({ type: 'complete', final: true, totalUnique: sanitized.length, totalMs });
+      send({ type: 'completed', totalUnique: sanitized.length, totalMs });
 
       cleanup();
     } catch (err) {
@@ -142,21 +161,22 @@ exports.streamSearch = async (req, res) => {
           const resDoc = await ProductResult.findOne({ queryKey }).lean();
           const resultTimestamp = resDoc ? new Date(resDoc.updatedAt).getTime() : 0;
 
+          const sanitized = resDoc && resDoc.products ? sanitizeProducts(resDoc.products) : [];
           // Deliver results if they are newer than what we initially served from cache
           if (resDoc && resDoc.products && resDoc.products.length > 0 &&
               (!cachedResultTimestamp || resultTimestamp > cachedResultTimestamp)) {
 
-            console.log(`[SSE REFRESH DELIVERED] queryKey="${queryKey}" resultCount=${resDoc.products.length}`);
-            console.log(`[PIPELINE-TRACE] Stage 5b (Poll→SSE): Read ${resDoc.products.length} products from ProductResult for queryKey="${queryKey}"`);
+            console.log(`[SSE REFRESH DELIVERED] queryKey="${queryKey}" resultCount=${sanitized.length}`);
+            console.log(`[PIPELINE-TRACE] Stage 5b (Poll→SSE): Read ${sanitized.length} products from ProductResult for queryKey="${queryKey}"`);
             console.log(`[PUBSUB DELIVERY] queryKey="${queryKey}" source=polling`);
 
             refreshDelivered = true;
 
-            console.log(`[PIPELINE-TRACE] Stage 6b (SSE Send): Sending ${resDoc.products.length} products to frontend via polling path (final=true)`);
+            console.log(`[PIPELINE-TRACE] Stage 6b (SSE Send): Sending ${sanitized.length} products to frontend via polling path (final=true)`);
             send({
               type: 'partial-results',
               final: true,
-              products: resDoc.products
+              products: sanitized
             });
           }
 
@@ -165,12 +185,12 @@ exports.streamSearch = async (req, res) => {
           send({
             type: 'complete',
             final: true,
-            totalUnique: resDoc?.products?.length || 0,
+            totalUnique: sanitized.length,
             totalMs
           });
           send({
             type: 'completed',
-            totalUnique: resDoc?.products?.length || 0,
+            totalUnique: sanitized.length,
             totalMs
           });
           cleanup();
@@ -193,22 +213,23 @@ exports.streamSearch = async (req, res) => {
     const cachedResult = await ProductResult.findOne({ queryKey }).lean();
     console.log(`[DB RESULT] queryKey="${queryKey}" productResultsCount=${cachedResult?.products?.length || 0}`);
 
+    const sanitizedCached = cachedResult && cachedResult.products ? sanitizeProducts(cachedResult.products) : [];
     if (cachedResult && cachedResult.products && cachedResult.products.length > 0) {
       cachedResultTimestamp = new Date(cachedResult.updatedAt).getTime();
       const age = Date.now() - cachedResultTimestamp;
 
-      console.log(`[CACHE RESULT] queryKey="${queryKey}" resultCount=${cachedResult.products.length} createdAt="${new Date(cachedResult.updatedAt).toISOString()}"`);
-      console.log(`[SSE CACHE SERVED] queryKey="${queryKey}" resultCount=${cachedResult.products.length}`);
-      console.log(`[PIPELINE-TRACE] Stage 5c (Cache→SSE): Serving ${cachedResult.products.length} cached products for queryKey="${queryKey}" (age: ${Math.round(age / 1000)}s)`);
+      console.log(`[CACHE RESULT] queryKey="${queryKey}" resultCount=${sanitizedCached.length} createdAt="${new Date(cachedResult.updatedAt).toISOString()}"`);
+      console.log(`[SSE CACHE SERVED] queryKey="${queryKey}" resultCount=${sanitizedCached.length}`);
+      console.log(`[PIPELINE-TRACE] Stage 5c (Cache→SSE): Serving ${sanitizedCached.length} cached products for queryKey="${queryKey}" (age: ${Math.round(age / 1000)}s)`);
       console.log("cacheHitKey", queryKey);
       console.log(`[SSE] Cache HIT for "${queryKey}" (Age: ${Math.round(age / 60000)}m)`);
 
       // Send cached data immediately as non-final results
-      console.log(`[PIPELINE-TRACE] Stage 6c (SSE Send): Sending ${cachedResult.products.length} CACHED products to frontend (final=false)`);
+      console.log(`[PIPELINE-TRACE] Stage 6c (SSE Send): Sending ${sanitizedCached.length} CACHED products to frontend (final=false)`);
       send({
         type: 'partial-results',
         final: false,
-        products: cachedResult.products
+        products: sanitizedCached
       });
 
       // NOTE: Stream stays open. We proceed to trigger a background refresh below.

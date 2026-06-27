@@ -77,14 +77,19 @@ function mergeProductsList(prev, incoming) {
 }
 
 /* ── Platform display config ─────────────────────────────────────────────── */
+const enableAmazon = process.env.ENABLE_AMAZON === 'true';
 const PLATFORM_CONFIG = {
-  Amazon:           { color: '#ff9900', emoji: '🛒' },
+  ...(enableAmazon ? { Amazon: { color: '#ff9900', emoji: '🛒' } } : {}),
   Flipkart:         { color: '#2874f0', emoji: '🏪' },
   Myntra:           { color: '#ff3f6c', emoji: '👗' },
   'Reliance Digital': { color: '#1c96c5', emoji: '📱' },
   AJIO:             { color: '#e4002b', emoji: '🎁' },
   Nykaa:            { color: '#e91e8c', emoji: '💄' },
 };
+
+const ACTIVE_PLATFORMS = enableAmazon
+  ? ['Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra']
+  : ['Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra'];
 
 export default function Home() {
   const [products, setProducts]       = useState([]);
@@ -284,7 +289,7 @@ export default function Home() {
 
   const storeCounts = useMemo(() => {
     const counts = { All: priceFiltered.length };
-    ['Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra'].forEach(plat => {
+    ACTIVE_PLATFORMS.forEach(plat => {
       counts[plat] = priceFiltered.filter(p => p.stores?.some(s => s.storeName === plat && s.price > 0)).length;
     });
     return counts;
@@ -326,7 +331,7 @@ export default function Home() {
           Platform
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {['All', 'Amazon', 'Flipkart', 'Reliance Digital', 'AJIO', 'Nykaa', 'Myntra'].map(plat => {
+          {['All', ...ACTIVE_PLATFORMS].map(plat => {
             const cfg = PLATFORM_CONFIG[plat];
             const cnt = storeCounts[plat] || 0;
             const active = platformFilter === plat;
@@ -391,7 +396,7 @@ export default function Home() {
     <>
       <Head>
         <title>Preeso — Smart Prices. Smarter Shopping.</title>
-        <meta name="description" content="Preeso compares prices across Amazon, Flipkart, Myntra, AJIO, Nykaa and more — find the best deals in real time." />
+        <meta name="description" content={`Preeso compares prices across ${enableAmazon ? 'Amazon, ' : ''}Flipkart, Myntra, AJIO, Nykaa and more — find the best deals in real time.`} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta property="og:title" content="Preeso — Smart Prices. Smarter Shopping." />
         <meta property="og:description" content="Compare product prices across all major Indian e-commerce platforms instantly." />
@@ -503,7 +508,7 @@ export default function Home() {
               fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: 'var(--text-secondary)',
               marginBottom: 44, lineHeight: 1.7, maxWidth: 560, margin: '0 auto 44px',
             }}>
-              Preeso searches Amazon, Flipkart, Myntra, AJIO, Nykaa & more in real time
+              Preeso searches {enableAmazon ? 'Amazon, ' : ''}Flipkart, Myntra, AJIO, Nykaa & more in real time
               so you always pay the lowest price.
             </p>
 
@@ -566,7 +571,7 @@ export default function Home() {
 
             {/* Stats row */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginTop: 56 }}>
-              {[['6', 'Platforms'], ['Real‑time', 'Prices'], ['10K+', 'Happy Users']].map(([num, label]) => (
+              {[[enableAmazon ? '6' : '5', 'Platforms'], ['Real‑time', 'Prices'], ['10K+', 'Happy Users']].map(([num, label]) => (
                 <div key={label} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--brand-electric)', letterSpacing: '-0.03em' }}>{num}</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: 3 }}>{label}</div>

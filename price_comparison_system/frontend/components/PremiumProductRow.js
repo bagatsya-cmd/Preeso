@@ -7,7 +7,8 @@ const PremiumProductRow = ({ product }) => {
 
   // Helper to determine best deal
   const stores = product.stores || [];
-  const validStores = stores.filter(s => s.price > 0).sort((a, b) => a.price - b.price);
+  const enableAmazon = process.env.ENABLE_AMAZON === 'true';
+  const validStores = stores.filter(s => s.price > 0 && (enableAmazon || s.storeName !== 'Amazon')).sort((a, b) => a.price - b.price);
   const bestDeal = validStores.length > 0 ? validStores[0] : null;
 
   // Render dummy delivery info for UI effect if missing

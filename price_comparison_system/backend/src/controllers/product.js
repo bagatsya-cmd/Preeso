@@ -5,6 +5,24 @@ const ProductResult = require('../models/productResult');
 const ScrapeJob = require('../models/scrapeJob');
 const { normalizeQuery } = require('../utils/queryNormalizer');
 
+function sanitizeProducts(products) {
+  if (!products) return [];
+  if (process.env.ENABLE_AMAZON === 'true') {
+    return products;
+  }
+  return products
+    .map(product => {
+      const filteredStores = (product.stores || []).filter(s => s.storeName !== 'Amazon');
+      if (filteredStores.length === 0) return null;
+      return {
+        ...product,
+        stores: filteredStores,
+        lowestPrice: Math.min(...filteredStores.map(s => s.price))
+      };
+    })
+    .filter(Boolean);
+}
+
 // Helper to generate 30-day price history for a store
 function generatePriceHistory(storeName, currentPrice) {
   const history = [];
@@ -68,7 +86,7 @@ exports.searchProducts = async (req, res) => {
     }
 
     // 3. Immediately return cached products (or empty array if none)
-    return res.json(cachedResult ? cachedResult.products : []);
+    return res.json(cachedResult ? sanitizeProducts(cachedResult.products) : []);
   } catch (err) {
     console.error('[API Search] Error:', err);
     res.status(500).json({ message: 'Server error during search pipeline' });

@@ -14,7 +14,7 @@ const nykaaScraper    = require('../scrapers/nykaa');
 const scraperHealth   = require('../utils/scraperHealth');
 const logger          = require('../utils/logger');
 
-const PLATFORMS = [
+const ALL_PLATFORMS = [
   { name: 'Flipkart',         scraper: flipkartScraper,  timeoutMs: 5000 },
   { name: 'Amazon',           scraper: amazonScraper,    timeoutMs: 6000 },
   { name: 'Reliance Digital', scraper: relianceScraper,  timeoutMs: 6000 },
@@ -22,6 +22,10 @@ const PLATFORMS = [
   { name: 'Nykaa',            scraper: nykaaScraper,     timeoutMs: 6000 },
   { name: 'Myntra',           scraper: myntraScraper,    timeoutMs: 4000 },
 ];
+
+const PLATFORMS = process.env.ENABLE_AMAZON === 'true'
+  ? ALL_PLATFORMS
+  : ALL_PLATFORMS.filter(p => p.name !== 'Amazon');
 
 async function runScrape(query) {
   const allRaw = [];

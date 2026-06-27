@@ -6,8 +6,9 @@ import Navbar from '../../components/Navbar';
 import PriceHistoryChart from '../../components/PriceHistoryChart';
 import AlertForm from '../../components/AlertForm';
 
+const enableAmazon = process.env.ENABLE_AMAZON === 'true';
 const STORE_COLORS = {
-  Amazon:           { bg: 'var(--bg-card)', text: '#f5f5f5', border: 'var(--border-color)', icon: '🛒' },
+  ...(enableAmazon ? { Amazon:           { bg: 'var(--bg-card)', text: '#f5f5f5', border: 'var(--border-color)', icon: '🛒' } } : {}),
   Flipkart:         { bg: 'var(--bg-card)', text: '#f5f5f5', border: 'var(--border-color)', icon: '🛍️' },
   Myntra:           { bg: 'var(--bg-card)', text: '#f5f5f5', border: 'var(--border-color)', icon: '👗' },
   'Reliance Digital': { bg: 'var(--bg-card)', text: '#f5f5f5', border: 'var(--border-color)', icon: '📱' },
@@ -70,7 +71,8 @@ export default function ProductPage() {
   );
 
   const stores = product.stores || [];
-  const validStores = stores.filter(s => s.price > 0).sort((a,b) => a.price - b.price);
+  const enableAmazon = process.env.ENABLE_AMAZON === 'true';
+  const validStores = stores.filter(s => s.price > 0 && (enableAmazon || s.storeName !== 'Amazon')).sort((a,b) => a.price - b.price);
   const lowestStore = validStores.length > 0 ? validStores[0] : null;
   const savings = lowestStore?.originalPrice ? lowestStore.originalPrice - lowestStore.price : 0;
 

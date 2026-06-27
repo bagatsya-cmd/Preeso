@@ -64,15 +64,23 @@ function findDemoProducts(query) {
         }
     }
     // Generic fallback — return a mix of trending products
+    let finalResults = results;
     if (results.length === 0) {
-        return [
+        finalResults = [
             DEMO_PRODUCTS.iphone[0],
             DEMO_PRODUCTS.samsung[0],
             DEMO_PRODUCTS.headphones[0],
             DEMO_PRODUCTS.laptop[0],
         ].filter(Boolean);
     }
-    return results;
+    
+    if (process.env.ENABLE_AMAZON !== 'true') {
+        return finalResults.map(p => {
+            const stores = (p.stores || []).filter(s => s.storeName !== 'Amazon');
+            return { ...p, stores };
+        }).filter(p => p.stores.length > 0);
+    }
+    return finalResults;
 }
 
 // ------------------------------------------------------------------
@@ -254,10 +262,15 @@ async function scrapeFlipkart(query) {
 // ------------------------------------------------------------------
 exports.searchAllPlatforms = async (query) => {
     // 1. First attempt to scrape directly
-    const [amazonResults, flipkartResults] = await Promise.allSettled([
-        scrapeAmazon(query),
-        scrapeFlipkart(query)
-    ]);
+    const scrapePromises = [];
+    if (process.env.ENABLE_AMAZON === 'true') {
+        scrapePromises.push(scrapeAmazon(query));
+    } else {
+        scrapePromises.push(Promise.resolve([]));
+    }
+    scrapePromises.push(scrapeFlipkart(query));
+
+    const [amazonResults, flipkartResults] = await Promise.allSettled(scrapePromises);
 
     let scrapedProducts = [];
     if (amazonResults.status === 'fulfilled') {

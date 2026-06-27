@@ -43,11 +43,11 @@ function buildCandidates(product) {
   return unique.sort((a, b) => cdnScore(b) - cdnScore(a));
 }
 
-// ── Platform branding chips — Preeso theme ───────────────────────────────────
+const enableAmazon = process.env.ENABLE_AMAZON === 'true';
 const PLATFORM_CHIPS = {
   AJIO:    { label: 'AJIO',    bg: 'rgba(228,0,43,0.18)',    color: '#ff4d6a',  border: 'rgba(228,0,43,0.3)'    },
   Nykaa:   { label: 'NYKAA',  bg: 'rgba(233,30,140,0.18)',  color: '#f472b6',  border: 'rgba(233,30,140,0.3)'  },
-  Amazon:  { label: 'AMZ',    bg: 'rgba(255,153,0,0.15)',   color: '#fb923c',  border: 'rgba(255,153,0,0.3)'   },
+  ...(enableAmazon ? { Amazon:  { label: 'AMZ',    bg: 'rgba(255,153,0,0.15)',   color: '#fb923c',  border: 'rgba(255,153,0,0.3)'   } } : {}),
   Flipkart:{ label: 'FK',     bg: 'rgba(40,116,240,0.18)',  color: '#60a5fa',  border: 'rgba(40,116,240,0.3)'  },
   Myntra:  { label: 'MYNTRA', bg: 'rgba(255,63,108,0.15)',  color: '#fb7185',  border: 'rgba(255,63,108,0.3)'  },
   'Reliance Digital': { label: 'RD', bg: 'rgba(28,150,197,0.15)', color: '#38bdf8', border: 'rgba(28,150,197,0.3)' },
