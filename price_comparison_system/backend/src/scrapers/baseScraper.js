@@ -26,31 +26,18 @@ class BaseScraper {
    * Core scrape wrapper with retry logic and proxy fallback
    */
   async scrapeWithRetry(url, scrapeFn, query = 'unknown') {
-    const queryKey = query !== 'unknown' 
-      ? query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/\s+/g, '_')
-      : null;
-
     let attempts = 0;
     let currentProxy = null;
 
     while (attempts < this.maxRetries) {
-      if (browserManager.isCancelled && browserManager.isCancelled(queryKey)) {
-        console.log(`[${this.platformName}] Job is cancelled. Stopping scrape loop.`);
-        break;
-      }
-
       attempts++;
       currentProxy = proxyManager.getProxy();
       let page = null;
 
       try {
         return await scrapeQueue.add(async () => {
-          if (browserManager.isCancelled && browserManager.isCancelled(queryKey)) {
-            throw new Error('Cancelled');
-          }
-
           console.log(`[${this.platformName}] Attempt ${attempts} -> Navigating to ${url}`);
-          page = await browserManager.getPage(currentProxy, this.skipInterception, queryKey);
+          page = await browserManager.getPage(currentProxy, this.skipInterception);
 
           // Invoke subclass preparePage hook
           if (typeof this.preparePage === 'function') {
@@ -160,11 +147,6 @@ class BaseScraper {
           proxyManager.markBadProxy(currentProxy);
         }
 
-        if (browserManager.isCancelled && browserManager.isCancelled(queryKey)) {
-          console.log(`[${this.platformName}] Cancelled. Breaking retry loop.`);
-          break;
-        }
-
         if (attempts >= this.maxRetries) {
           console.error(`[${this.platformName}] All ${this.maxRetries} attempts failed.`);
           return [];
@@ -173,8 +155,8 @@ class BaseScraper {
         await new Promise(r => setTimeout(r, 1000));
       } finally {
         try {
-          if (page) {
-            await browserManager.releasePage(page, queryKey);
+          if (page && !page.isClosed()) {
+            await page.close();
           }
         } catch (_) {}
       }
