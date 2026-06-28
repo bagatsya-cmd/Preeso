@@ -396,7 +396,7 @@ export default function Home() {
     <>
       <Head>
         <title>Preeso — Smart Prices. Smarter Shopping.</title>
-        <meta name="description" content={`Preeso compares prices across ${enableAmazon ? 'Amazon, ' : ''}Flipkart, Myntra, AJIO, Nykaa and more — find the best deals in real time.`} />
+        <meta name="description" content={`Preeso compares prices across ${enableAmazon ? 'Amazon, ' : ''}Flipkart, Myntra, AJIO, Nykaa and more — with instant results and live price updates.`} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta property="og:title" content="Preeso — Smart Prices. Smarter Shopping." />
         <meta property="og:description" content="Compare product prices across all major Indian e-commerce platforms instantly." />
@@ -508,8 +508,7 @@ export default function Home() {
               fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: 'var(--text-secondary)',
               marginBottom: 44, lineHeight: 1.7, maxWidth: 560, margin: '0 auto 44px',
             }}>
-              Preeso searches {enableAmazon ? 'Amazon, ' : ''}Flipkart, Myntra, AJIO, Nykaa & more in real time
-              so you always pay the lowest price.
+              Compare prices across {enableAmazon ? 'Amazon, ' : ''}Flipkart, Myntra, AJIO, Nykaa & more — with instant results and live price updates.
             </p>
 
             {/* Search bar */}
@@ -571,7 +570,7 @@ export default function Home() {
 
             {/* Stats row */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginTop: 56 }}>
-              {[[enableAmazon ? '6' : '5', 'Platforms'], ['Real‑time', 'Prices'], ['10K+', 'Happy Users']].map(([num, label]) => (
+              {[[enableAmazon ? '6' : '5', 'Stores Compared'], ['Instant', 'Results'], ['10K+', 'Products Indexed']].map(([num, label]) => (
                 <div key={label} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--brand-electric)', letterSpacing: '-0.03em' }}>{num}</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: 3 }}>{label}</div>
