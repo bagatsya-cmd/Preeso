@@ -99,6 +99,11 @@ function sanitizeProducts(products) {
     .filter(Boolean);
 }
 
+// Active connection counts per queryKey (queryKey -> count)
+const activeConnectionsCount = new Map();
+// Pending cancellation timers per queryKey (queryKey -> Timeout ID)
+const cancellationTimers = new Map();
+
 // ── SSE utilities ─────────────────────────────────────────────────────────────
 function makeSend(res, alive) {
   return (typeOrObj, payload = {}) => {
@@ -140,6 +145,16 @@ exports.streamSearch = async (req, res) => {
   console.log("queryKey", queryKey);
   console.log(`[SSE] Search request: "${normalizedQuery}" | queryKey: "${queryKey}"`);
 
+  // Track active connection counts and clear any pending cancel timers for this queryKey
+  const currentCount = (activeConnectionsCount.get(queryKey) || 0) + 1;
+  activeConnectionsCount.set(queryKey, currentCount);
+
+  if (cancellationTimers.has(queryKey)) {
+    console.log(`[SSE] Reconnected to queryKey "${queryKey}". Cancelling grace-period timeout.`);
+    clearTimeout(cancellationTimers.get(queryKey));
+    cancellationTimers.delete(queryKey);
+  }
+
   // SSE headers
   res.writeHead(200, {
     'Content-Type':            'text/event-stream',
@@ -171,6 +186,43 @@ exports.streamSearch = async (req, res) => {
       alive.ok = false;
     }
     activeSearches--;
+
+    // Connection count decrement and cancellation grace period trigger
+    const updatedCount = (activeConnectionsCount.get(queryKey) || 0) - 1;
+    if (updatedCount <= 0) {
+      activeConnectionsCount.delete(queryKey);
+
+      // Trigger grace period timer if LIVE job cancellation is enabled
+      if (process.env.ENABLE_LIVE_JOB_CANCELLATION === 'true') {
+        console.log(`[SSE] Disconnected from queryKey "${queryKey}". Starting 8s grace period before cancellation.`);
+        const timer = setTimeout(async () => {
+          cancellationTimers.delete(queryKey);
+          console.log(`[SSE] Grace period expired. Cancelling search job for queryKey: "${queryKey}"`);
+          
+          try {
+            // Update MongoDB job status to failed
+            await ScrapeJob.findOneAndUpdate(
+              { queryKey, status: { $in: ['pending', 'scraping'] } },
+              { $set: { status: 'failed', error: 'Cancelled (Abandoned)' } }
+            );
+
+            // Send IPC message to scraper worker child process
+            const workerManager = require('../utils/workerManager');
+            const proc = workerManager.getScraperProcess ? workerManager.getScraperProcess() : null;
+            if (proc && proc.send) {
+              proc.send({ type: 'CANCEL_JOB', queryKey });
+            }
+          } catch (err) {
+            console.error(`[SSE] Error during job cancellation:`, err.message);
+          }
+        }, 8000); // 8-second grace period
+
+        cancellationTimers.set(queryKey, timer);
+      }
+    } else {
+      activeConnectionsCount.set(queryKey, updatedCount);
+    }
+
     console.log(`[SSE] Closed stream for queryKey: "${queryKey}"`);
   };
 

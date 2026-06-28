@@ -132,35 +132,60 @@ async function startWorker() {
         console.log("Job picked");
         console.log(`[ScraperWorker] Job picked: "${job.query}"`);
         
-        try {
-          console.log("Scraping started");
-          console.log(`[ScraperWorker] Scraping started for: "${job.query}"`);
-          
-          await runScraping(job);
-          
-          console.log("Scraping completed");
-          console.log(`[ScraperWorker] Scraping completed for query: "${job.query}"`);
-          
-          // Move status to 'scraped'
-          job.status = 'scraped';
-          job.updatedAt = new Date();
-          await job.save();
-        } catch (err) {
-          console.error(`[ScraperWorker] Scrape failed for job ${job._id}:`, err);
-          job.status = 'failed';
-          job.error = err.message;
-          job.updatedAt = new Date();
-          await job.save();
+          try {
+            console.log("Scraping started");
+            console.log(`[ScraperWorker] Scraping started for: "${job.query}"`);
+            
+            await runScraping(job);
+            
+            console.log("Scraping completed");
+            console.log(`[ScraperWorker] Scraping completed for query: "${job.query}"`);
+            
+            // Move status to 'scraped'
+            job.status = 'scraped';
+            job.updatedAt = new Date();
+            await job.save();
+          } catch (err) {
+            console.error(`[ScraperWorker] Scrape failed for job ${job._id}:`, err);
+            job.status = 'failed';
+            job.error = err.message;
+            job.updatedAt = new Date();
+            await job.save();
+          } finally {
+            const browserManager = require('../utils/browserManager');
+            if (browserManager.clearCancelled) {
+              browserManager.clearCancelled(job.queryKey);
+            }
+          }
+        } else {
+          // No jobs to run, sleep for 2 seconds
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
-      } else {
-        // No jobs to run, sleep for 2 seconds
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (err) {
+        console.error('[ScraperWorker] Error in polling loop:', err.message);
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
-    } catch (err) {
-      console.error('[ScraperWorker] Error in polling loop:', err.message);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
   }
+}
+
+// Register IPC message listener for job cancellation in production
+if (process.env.ENABLE_LIVE_JOB_CANCELLATION === 'true') {
+  process.on('message', async (msg) => {
+    if (msg && msg.type === 'CANCEL_JOB') {
+      const { queryKey } = msg;
+      console.log(`[ScraperWorker] IPC: Received CANCEL_JOB for queryKey: "${queryKey}"`);
+      
+      const browserManager = require('../utils/browserManager');
+      browserManager.markCancelled(queryKey);
+      
+      try {
+        await browserManager.cancelPagesForQuery(queryKey);
+      } catch (err) {
+        console.error(`[ScraperWorker] Error while closing pages for cancelled queryKey:`, err.message);
+      }
+    }
+  });
 }
 
 // Connect to MongoDB and run

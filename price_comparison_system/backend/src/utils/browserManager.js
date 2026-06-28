@@ -29,6 +29,8 @@ class BrowserManager {
     this.browser      = null;
     this.isLaunching  = false;
     this.launchPromise = null;
+    this.activePages   = new Map(); // queryKey -> Set of page objects
+    this.cancelledKeys = new Set();  // queryKeys currently marked as cancelled
   }
 
   async getBrowser() {
@@ -90,7 +92,7 @@ class BrowserManager {
    * Create a fresh isolated tab with resource blocking pre-configured.
    * Each tab is independent — safe for parallel scraping.
    */
-  async getPage(proxy = null, skipInterception = false) {
+  async getPage(proxy = null, skipInterception = false, queryKey = null) {
     const browser = await this.getBrowser();
     
     // Support proxy setting if provided
@@ -112,6 +114,14 @@ class BrowserManager {
     } else {
       console.log('[BrowserManager] Launching page with direct connection (no proxy).');
       page = await browser.newPage();
+    }
+
+    // Register active page under queryKey if supplied
+    if (queryKey) {
+      if (!this.activePages.has(queryKey)) {
+        this.activePages.set(queryKey, new Set());
+      }
+      this.activePages.get(queryKey).add(page);
     }
 
     const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
@@ -158,9 +168,45 @@ class BrowserManager {
     return page;
   }
 
-  async releasePage(page) {
-    if (!page || page.isClosed()) return;
-    await page.close().catch(() => {});
+  async releasePage(page, queryKey = null) {
+    if (!page) return;
+    if (queryKey && this.activePages.has(queryKey)) {
+      this.activePages.get(queryKey).delete(page);
+      if (this.activePages.get(queryKey).size === 0) {
+        this.activePages.delete(queryKey);
+      }
+    }
+    if (!page.isClosed()) {
+      await page.close().catch(() => {});
+    }
+  }
+
+  async cancelPagesForQuery(queryKey) {
+    if (!queryKey || !this.activePages.has(queryKey)) return;
+    console.log(`[BrowserManager] Closing active pages for cancelled queryKey: "${queryKey}"`);
+    const pages = this.activePages.get(queryKey);
+    for (const page of pages) {
+      try {
+        if (page && !page.isClosed()) {
+          await page.close().catch(() => {});
+        }
+      } catch (err) {
+        console.error(`[BrowserManager] Error closing page for cancelled query:`, err.message);
+      }
+    }
+    this.activePages.delete(queryKey);
+  }
+
+  isCancelled(queryKey) {
+    return queryKey && this.cancelledKeys.has(queryKey);
+  }
+
+  markCancelled(queryKey) {
+    if (queryKey) this.cancelledKeys.add(queryKey);
+  }
+
+  clearCancelled(queryKey) {
+    if (queryKey) this.cancelledKeys.delete(queryKey);
   }
 
   async closeBrowser() {

@@ -55,7 +55,12 @@ function stopWorkers() {
   if (aggregatorProcess) aggregatorProcess.kill();
 }
 
+function getScraperProcess() {
+  return scraperProcess;
+}
+
 module.exports = {
   startWorkers,
-  stopWorkers
+  stopWorkers,
+  getScraperProcess
 };
