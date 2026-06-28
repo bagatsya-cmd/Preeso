@@ -4,6 +4,83 @@ const pubSub = require('../utils/pubSub');
 const { normalizeQuery } = require('../utils/queryNormalizer');
 const logger = require('../utils/logger');
 
+// ── Stop-words excluded from keyword matching ──────────────────────────────────
+const CATALOG_STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'for', 'with', 'in', 'on', 'at',
+  'new', 'buy', 'best', 'top', 'latest', 'good', 'great', 'online',
+]);
+
+/**
+ * searchCatalog — keyword fallback before live scraping.
+ *
+ * Searches ALL existing ProductResult documents for embedded products whose
+ * baseName or brand contains at least one keyword from the query.
+ * Results are ranked by keyword overlap count and capped at 50.
+ *
+ * Does NOT modify any data. Read-only query on the productresults collection.
+ * Only called on an exact-query cache miss.
+ *
+ * @param {string} query  Normalized search query string.
+ * @returns {Promise<Array>} Array of matched product cards (same shape as ProductResult.products items).
+ */
+async function searchCatalog(query) {
+  try {
+    const keywords = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length > 1 && !CATALOG_STOP_WORDS.has(w));
+
+    if (keywords.length === 0) return [];
+
+    // Build one regex per keyword. Each regex is applied to baseName and brand.
+    const regexes = keywords.map(k => new RegExp(k, 'i'));
+
+    // Fetch all ProductResult documents whose embedded products array contains at
+    // least one product matching any keyword in baseName or brand.
+    // $or across fields; MongoDB still scans the collection but the array is small
+    // (286 docs at production time) so this is consistently < 5 ms.
+    const matchingDocs = await ProductResult.find({
+      $or: [
+        { 'products.baseName': { $in: regexes } },
+        { 'products.brand':    { $in: regexes } },
+      ],
+    }, { products: 1 }).lean();
+
+    if (!matchingDocs.length) return [];
+
+    // Flatten all embedded product cards from matched documents.
+    const allProducts = matchingDocs.flatMap(doc => doc.products || []);
+
+    // Score each product by how many keywords appear in baseName + brand.
+    const scored = allProducts
+      .map(p => {
+        const haystack = `${p.baseName || ''} ${p.brand || ''}`.toLowerCase();
+        const score = keywords.filter(k => haystack.includes(k)).length;
+        return { product: p, score };
+      })
+      .filter(({ score }) => score > 0);
+
+    // Sort highest-scoring first, deduplicate by baseName, cap at 50.
+    scored.sort((a, b) => b.score - a.score);
+    const seen = new Set();
+    const results = [];
+    for (const { product } of scored) {
+      const key = (product.baseName || '').toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push(product);
+      }
+      if (results.length >= 50) break;
+    }
+
+    return results;
+  } catch (err) {
+    // Never block the main SSE flow on a catalog search error.
+    console.error('[SSE] Catalog search error (non-fatal):', err.message);
+    return [];
+  }
+}
+
 function sanitizeProducts(products) {
   if (!products) return [];
   if (process.env.ENABLE_AMAZON === 'true') {
@@ -209,7 +286,7 @@ exports.streamSearch = async (req, res) => {
 
   // ── Main request flow ─────────────────────────────────────────────────────
   try {
-    // 1. Fetch cached results and serve immediately (but NEVER close the stream here)
+    // Step 1. Exact query cache — fastest path, unchanged behaviour.
     const cachedResult = await ProductResult.findOne({ queryKey }).lean();
     console.log(`[DB RESULT] queryKey="${queryKey}" productResultsCount=${cachedResult?.products?.length || 0}`);
 
@@ -233,9 +310,30 @@ exports.streamSearch = async (req, res) => {
       });
 
       // NOTE: Stream stays open. We proceed to trigger a background refresh below.
+
     } else {
-      console.log(`[SSE] Cache MISS for "${queryKey}"`);
-      send('scraper-status', { store: 'System', status: 'Searching platforms in background...' });
+      // Step 2. Catalog fallback — search ALL existing ProductResult documents for
+      // products matching any keyword in the query. Only runs on a cache miss.
+      // Read-only. Does not affect scraping, job creation, or any other flow.
+      const catalogProducts = await searchCatalog(normalizedQuery);
+      const sanitizedCatalog = sanitizeProducts(catalogProducts);
+
+      if (sanitizedCatalog.length > 0) {
+        cachedResultTimestamp = Date.now();
+        console.log(`[SSE] Catalog HIT for "${normalizedQuery}" — ${sanitizedCatalog.length} products from historical data`);
+        console.log(`[PIPELINE-TRACE] Stage 5d (Catalog→SSE): Serving ${sanitizedCatalog.length} catalog products for query="${normalizedQuery}" (final=false)`);
+        send({
+          type:     'partial-results',
+          cached:   true,
+          source:   'catalog',
+          final:    false,
+          products: sanitizedCatalog,
+        });
+        // Stream stays open — scraping continues in background below.
+      } else {
+        console.log(`[SSE] Cache MISS and Catalog MISS for "${queryKey}"`);
+        send('scraper-status', { store: 'System', status: 'Searching platforms in background...' });
+      }
     }
 
     // 2. Always trigger a background scrape/refresh job (with deduplication)
