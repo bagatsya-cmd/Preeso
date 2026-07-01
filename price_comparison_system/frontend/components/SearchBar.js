@@ -11,7 +11,7 @@ const SUGGESTIONS = [
   'handbags', 'sunglasses', 'watches',
 ];
 
-export default function SearchBar({ onSearch, loading, compact = false, initialValue = '' }) {
+export default function SearchBar({ onSearch, onChange, loading, compact = false, initialValue = '' }) {
   const [query, setQuery] = useState(initialValue);
   const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -42,7 +42,12 @@ export default function SearchBar({ onSearch, loading, compact = false, initialV
     if (query.trim()) { onSearch(query.trim()); setSuggestions([]); }
   };
 
-  const handleSuggestion = (s) => { setQuery(s); onSearch(s); setSuggestions([]); };
+  const handleSuggestion = (s) => { 
+    setQuery(s); 
+    if (onChange) onChange(s);
+    onSearch(s); 
+    setSuggestions([]); 
+  };
 
   const inputPadding = compact ? '11px 38px 11px 44px' : '16px 48px 16px 52px';
   const btnPadding   = compact ? '11px 18px' : '16px 26px';
@@ -60,7 +65,10 @@ export default function SearchBar({ onSearch, loading, compact = false, initialV
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (onChange) onChange(e.target.value);
+            }}
             onFocus={() => setFocused(true)}
             onBlur={() => setTimeout(() => setFocused(false), 150)}
             placeholder="Search products across multiple stores…"
@@ -87,7 +95,10 @@ export default function SearchBar({ onSearch, loading, compact = false, initialV
             <span style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-color)', pointerEvents: 'none', fontWeight: 600 }}>⌘K</span>
           )}
           {query && (
-            <button type="button" onClick={() => setQuery('')} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+            <button type="button" onClick={() => {
+              setQuery('');
+              if (onChange) onChange('');
+            }} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
           )}
         </div>
 

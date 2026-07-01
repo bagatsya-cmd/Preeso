@@ -236,6 +236,22 @@ export default function Home() {
     if (!skipUrlUpdate) router.push({ query: { ...router.query, q: cleanQuery } }, undefined, { shallow: true });
   };
 
+  const handleSearchBarChange = (val) => {
+    if (isSearchActive && eventSourceRef.current) {
+      console.log('[FRONTEND] Search text changed or deleted. Cancelling active search:', val);
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+      setSearchState('idle');
+      if (!val || !val.trim()) {
+        setSearched(false);
+        setProducts([]);
+        setStreamStatus({});
+        setLiveCount(0);
+        router.push({ query: {} }, undefined, { shallow: true });
+      }
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) eventSourceRef.current.close();
@@ -512,7 +528,7 @@ export default function Home() {
             </p>
 
             {/* Search bar */}
-            <SearchBar onSearch={handleSearch} loading={isSearchActive} initialValue={router.query?.q || ''} />
+            <SearchBar onSearch={handleSearch} onChange={handleSearchBarChange} loading={isSearchActive} initialValue={router.query?.q || ''} />
 
             {/* Platform trust strip */}
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 32 }}>
@@ -597,7 +613,7 @@ export default function Home() {
             <div style={{ maxWidth: 1440, margin: '0 auto', display: 'flex', gap: 20, alignItems: 'center' }}>
 
               <div style={{ flex: 1 }}>
-                <SearchBar onSearch={handleSearch} loading={isSearchActive} compact initialValue={router.query?.q || ''} />
+                <SearchBar onSearch={handleSearch} onChange={handleSearchBarChange} loading={isSearchActive} compact initialValue={router.query?.q || ''} />
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 const BaseScraper = require('./baseScraper');
 const imageValidator = require('../utils/imageValidator');
+const { extractImageInBrowser, logImageExtraction, cleanImageUrl, validateImageUrl } = require('../utils/imageExtractor');
 
 class MyntraScraper extends BaseScraper {
   constructor() {
@@ -7,7 +8,7 @@ class MyntraScraper extends BaseScraper {
     this.containerSelector = 'li.product-base';
   }
 
-  async search(query) {
+  async search(query, jobId = null) {
     const url = `https://www.myntra.com/${encodeURIComponent(query).replace(/%20/g, '-')}`;
     
     return this.scrapeWithRetry(url, async (page) => {
@@ -52,7 +53,9 @@ class MyntraScraper extends BaseScraper {
       if (jsonResult && jsonResult.success && jsonResult.products && jsonResult.products.length > 0) {
         console.log(`[Myntra] JSON extraction success! Extracted ${jsonResult.products.length} products from window.__myx JSON`);
         return jsonResult.products.slice(0, 12).map(p => {
-          p.image = imageValidator.validateImage(p.image) || null;
+          const cleaned = cleanImageUrl(p.image);
+          p.image = validateImageUrl(cleaned, 'https://www.myntra.com') || null;
+          logImageExtraction('Myntra', p.title, p.image, p.image ? 'json' : null);
           return p;
         });
       } else {
@@ -73,14 +76,14 @@ class MyntraScraper extends BaseScraper {
       
       for (const el of products.slice(0, 12)) {
         try {
-          const data = await page.evaluate(element => {
+          const data = await page.evaluate((element, extractImgFn) => {
             const brandEl = element.querySelector('.product-brand');
             const nameEl = element.querySelector('.product-product');
             const priceEl = element.querySelector('.product-discountedPrice');
             const originalPriceEl = element.querySelector('.product-strike');
             const linkEl = element.querySelector('a');
-            const imgEl = element.querySelector('img');
             
+            const extractImg = new Function('return ' + extractImgFn)();
             const fallbackPriceEl = element.querySelector('.product-price');
 
             const brand = brandEl ? brandEl.innerText.trim() : '';
@@ -119,18 +122,10 @@ class MyntraScraper extends BaseScraper {
               link = urlObj.toString();
             } catch(e) {}
 
-            const imageEl = element.querySelector('img.img-responsive') || imgEl;
-            let image = '';
-            if (imageEl) {
-              const dataSrc = imageEl.getAttribute('data-src');
-              const src     = imageEl.getAttribute('src');
-              for (const candidate of [dataSrc, src]) {
-                if (candidate && !candidate.startsWith('data:') && !candidate.includes('base64')) {
-                  image = candidate;
-                  break;
-                }
-              }
-            }
+            // Image extraction using helper
+            const imgResult = extractImg(element, 'Myntra', window.location.href);
+            const image = imgResult.image;
+            const sourceAttr = imgResult.sourceAttr;
 
             return {
               platform: 'Myntra',
@@ -139,13 +134,14 @@ class MyntraScraper extends BaseScraper {
               originalPrice,
               link,
               image,
+              sourceAttr,
               brand,
               inStock: true
             };
-          }, el);
+          }, el, extractImageInBrowser.toString());
 
           if (data && data.link && data.link.startsWith('http')) {
-            data.image = imageValidator.validateImage(data.image) || null;
+            logImageExtraction('Myntra', data.title, data.image, data.sourceAttr);
             results.push(data);
           }
         } catch (err) {
@@ -155,7 +151,7 @@ class MyntraScraper extends BaseScraper {
       
       console.log(`[Myntra] DOM fallback completed. Extracted count: ${results.length}`);
       return results;
-    }, query);
+    }, query, jobId);
   }
 }
 

@@ -3,6 +3,7 @@ const path = require('path');
 const proxyManager = require('../utils/proxyManager');
 const browserManager = require('../utils/browserManager');
 const scrapeQueue = require('../utils/scrapeQueue');
+const cancellationManager = require('../utils/cancellationManager');
 
 const SNAPSHOT_DIR = path.join(__dirname, '../../../../debug-snapshots');
 
@@ -25,7 +26,7 @@ class BaseScraper {
   /**
    * Core scrape wrapper with retry logic and proxy fallback
    */
-  async scrapeWithRetry(url, scrapeFn, query = 'unknown') {
+  async scrapeWithRetry(url, scrapeFn, query = 'unknown', jobId = null) {
     let attempts = 0;
     let currentProxy = null;
 
@@ -36,8 +37,19 @@ class BaseScraper {
 
       try {
         return await scrapeQueue.add(async () => {
+          if (jobId) {
+            await cancellationManager.checkCancelled(jobId);
+          }
           console.log(`[${this.platformName}] Attempt ${attempts} -> Navigating to ${url}`);
           page = await browserManager.getPage(currentProxy, this.skipInterception);
+
+          if (jobId && page) {
+            cancellationManager.registerPage(jobId, page);
+          }
+
+          if (jobId) {
+            await cancellationManager.checkCancelled(jobId);
+          }
 
           // Invoke subclass preparePage hook
           if (typeof this.preparePage === 'function') {
@@ -154,6 +166,9 @@ class BaseScraper {
         
         await new Promise(r => setTimeout(r, 1000));
       } finally {
+        if (jobId && page) {
+          cancellationManager.unregisterPage(jobId, page);
+        }
         try {
           if (page && !page.isClosed()) {
             await page.close();

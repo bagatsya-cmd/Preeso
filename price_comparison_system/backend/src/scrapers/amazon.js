@@ -1,5 +1,6 @@
 const BaseScraper = require('./baseScraper');
 const imageValidator = require('../utils/imageValidator');
+const { extractImageInBrowser, logImageExtraction } = require('../utils/imageExtractor');
 
 class AmazonScraper extends BaseScraper {
   constructor() {
@@ -7,7 +8,7 @@ class AmazonScraper extends BaseScraper {
     this.containerSelector = '.s-result-item[data-component-type="s-search-result"]';
   }
 
-  async search(query) {
+  async search(query, jobId = null) {
     const url = `https://www.amazon.in/s?k=${encodeURIComponent(query)}`;
     
     return this.scrapeWithRetry(url, async (page) => {
@@ -36,11 +37,13 @@ class AmazonScraper extends BaseScraper {
       
       for (const el of products.slice(0, 12)) {
         try {
-          const data = await page.evaluate(element => {
+          const data = await page.evaluate((element, extractImgFn) => {
             const titleEl = element.querySelector('h2 a') || element.querySelector('h2') || element.querySelector('span.a-size-medium') || element.querySelector('span.a-size-base-plus');
             const priceEl = element.querySelector('.a-price-whole') || element.querySelector('.a-price .a-offscreen') || element.querySelector('span.a-price');
             const originalPriceEl = element.querySelector('.a-text-price .a-offscreen') || element.querySelector('span.a-text-price');
             const linkEl = element.querySelector('h2 a') || element.querySelector('.a-link-normal.s-no-outline') || element.querySelector('a.a-link-normal');
+            
+            const extractImg = new Function('return ' + extractImgFn)();
 
             if (!titleEl || !priceEl || !linkEl) return null;
 
@@ -60,44 +63,32 @@ class AmazonScraper extends BaseScraper {
             if (link.startsWith('/')) link = 'https://www.amazon.in' + link;
             try { const u = new URL(link); u.search = ''; link = u.toString(); } catch (e) {}
 
-            // Image: priority order — data-a-dynamic-image > data-old-hires > src > currentSrc
-            const imgEl = element.querySelector('img.s-image')
-                       || element.querySelector('img[data-image-latency]')
-                       || element.querySelector('img.a-dynamic-image')
-                       || element.querySelector('img');
+            // Image extraction using helper
+            const imgResult = extractImg(element, 'Amazon', window.location.href);
+            const image = imgResult.image;
+            const sourceAttr = imgResult.sourceAttr;
 
-            const imgCandidates = [];
-            if (imgEl) {
-              const dynData = imgEl.getAttribute('data-a-dynamic-image');
-              if (dynData) {
-                try {
-                  const keys = Object.keys(JSON.parse(dynData));
-                  imgCandidates.push(...keys);
-                } catch (_) {}
-              }
-              const oldHires = imgEl.getAttribute('data-old-hires');
-              if (oldHires) imgCandidates.push(oldHires);
-              const src = imgEl.getAttribute('src');
-              if (src) imgCandidates.push(src);
-              const currentSrc = imgEl.currentSrc;
-              if (currentSrc) imgCandidates.push(currentSrc);
-            }
-            const image = imgCandidates.find(u => u && !u.startsWith('data:')) || '';
-
-            return { platform: 'Amazon', title, price, originalPrice, link, image, inStock: true };
-          }, el);
+            return { platform: 'Amazon', title, price, originalPrice, link, image, sourceAttr, inStock: true };
+          }, el, extractImageInBrowser.toString());
 
           if (data && data.link && data.link.startsWith('http')) {
-            const candidates = [data.image].filter(Boolean);
-            data.image = imageValidator.pickBestImage(candidates) || imageValidator.validateImage(data.image) || null;
-            results.push(data);
+            logImageExtraction('Amazon', data.title, data.image, data.sourceAttr);
+            results.push({
+              platform: data.platform,
+              title: data.title,
+              price: data.price,
+              originalPrice: data.originalPrice,
+              link: data.link,
+              image: data.image || null,
+              inStock: true
+            });
           }
         } catch (err) {
           console.warn(`[Amazon] Failed to parse product element: ${err.message}`);
         }
       }
       return results;
-    }, query);
+    }, query, jobId);
   }
 }
 

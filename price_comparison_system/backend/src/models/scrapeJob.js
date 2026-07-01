@@ -6,7 +6,7 @@ const ScrapeJobSchema = new mongoose.Schema({
   status:    {
     type: String,
     required: true,
-    enum: ['pending', 'scraping', 'scraped', 'aggregating', 'completed', 'failed'],
+    enum: ['pending', 'running', 'scraping', 'scraped', 'aggregating', 'completed', 'failed', 'cancelled'],
     default: 'pending',
     index: true
   },

@@ -4,6 +4,9 @@ const pubSub = require('../utils/pubSub');
 const { normalizeQuery } = require('../utils/queryNormalizer');
 const { rankLiveResults } = require('../utils/liveSearchRanker');
 const logger = require('../utils/logger');
+const cancellationManager = require('../utils/cancellationManager');
+
+const activeClientJobs = new Map(); // ip -> jobId
 
 // ── Stop-words excluded from keyword matching ──────────────────────────────────
 const CATALOG_STOP_WORDS = new Set([
@@ -124,6 +127,20 @@ const SSE_MAX_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes max SSE open time
 
 exports.streamSearch = async (req, res) => {
   console.log('[SSE RECEIVED]', req.query.q, req.ip, req.headers.host);
+
+  // 1. Cancel previous client search immediately
+  const clientIp = req.ip || 'global';
+  if (process.env.NODE_ENV === 'production') {
+    const oldJobId = activeClientJobs.get(clientIp);
+    if (oldJobId) {
+      console.log(`[SSE] Cancelling previous job ${oldJobId} for client ${clientIp} due to new search request`);
+      cancellationManager.cancelJob(oldJobId).catch(err => 
+        console.error('[SSE] Error cancelling job on new search request:', err.message)
+      );
+      activeClientJobs.delete(clientIp);
+    }
+  }
+
   activeSearches++;
   const { q: query } = req.query;
   if (!query?.trim()) {
@@ -173,6 +190,19 @@ exports.streamSearch = async (req, res) => {
     }
     activeSearches--;
     console.log(`[SSE] Closed stream for queryKey: "${queryKey}"`);
+
+    // 2. Disconnect cancellation
+    if (process.env.NODE_ENV === 'production') {
+      const clientIp = req.ip || 'global';
+      const activeJobId = activeClientJobs.get(clientIp);
+      if (activeJobId) {
+        console.log(`[SSE] Stream closed. Cancelling active job ${activeJobId} for client ${clientIp}`);
+        cancellationManager.cancelJob(activeJobId).catch(err => 
+          console.error('[SSE] Error cancelling job on disconnect:', err.message)
+        );
+        activeClientJobs.delete(clientIp);
+      }
+    }
   };
 
   req.on('close', () => {
@@ -191,9 +221,20 @@ exports.streamSearch = async (req, res) => {
   }, SSE_MAX_TIMEOUT_MS);
 
   // ── Pub/Sub update callback (works when Redis is available) ───────────────
-  const updateCallback = (message) => {
+  const updateCallback = async (message) => {
     if (!alive.ok || refreshDelivered) return;
     try {
+      if (process.env.NODE_ENV === 'production') {
+        const clientIp = req.ip || 'global';
+        const activeJobId = activeClientJobs.get(clientIp);
+        if (activeJobId) {
+          const currentJob = await ScrapeJob.findById(activeJobId).lean();
+          if (currentJob && currentJob.status === 'cancelled') {
+            throw new Error('JOB_CANCELLED');
+          }
+        }
+      }
+
       const data = typeof message === 'string' ? JSON.parse(message) : message;
 
       console.log(`[SSE REFRESH DELIVERED] queryKey="${queryKey}" resultCount=${data.products?.length || 0}`);
@@ -220,6 +261,11 @@ exports.streamSearch = async (req, res) => {
 
       cleanup();
     } catch (err) {
+      if (err.message === 'JOB_CANCELLED') {
+        console.log('[SSE] Aborting update callback emit — job cancelled');
+        cleanup();
+        return;
+      }
       console.error('[SSE] Error handling PubSub update:', err.message);
     }
   };
@@ -234,6 +280,17 @@ exports.streamSearch = async (req, res) => {
       return;
     }
     try {
+      if (process.env.NODE_ENV === 'production') {
+        const clientIp = req.ip || 'global';
+        const activeJobId = activeClientJobs.get(clientIp);
+        if (activeJobId) {
+          const currentJob = await ScrapeJob.findById(activeJobId).lean();
+          if (currentJob && currentJob.status === 'cancelled') {
+            throw new Error('JOB_CANCELLED');
+          }
+        }
+      }
+
       // Find the newest job for this queryKey
       const job = await ScrapeJob.findOne({ queryKey }).sort({ createdAt: -1 });
       if (job) {
@@ -285,6 +342,11 @@ exports.streamSearch = async (req, res) => {
       }
       // If no job found at all, keep polling (job may not have been created yet)
     } catch (err) {
+      if (err.message === 'JOB_CANCELLED') {
+        console.log('[SSE] Aborting polling check — job cancelled');
+        cleanup();
+        return;
+      }
       console.error('[SSE] Error polling job status:', err.message);
     }
   }, 2000);
@@ -376,18 +438,26 @@ exports.streamSearch = async (req, res) => {
 
     console.log(`[JOB CHECK] queryKey="${queryKey}" jobFound=${!!activeJob} jobStatus="${activeJob ? activeJob.status : 'none'}"`);
 
+    let targetJobId;
     if (!activeJob) {
       console.log(`[REFRESH JOB CREATED] queryKey="${queryKey}"`);
-      await ScrapeJob.create({
+      const newJob = await ScrapeJob.create({
         query: normalizedQuery,
         queryKey,
         status: 'pending'
       });
+      targetJobId = newJob._id;
     } else {
       const reason = activeJob.status === 'completed'
         ? `recently_completed (${Math.round((Date.now() - new Date(activeJob.updatedAt).getTime()) / 1000)}s ago)`
         : `active_job_exists (status: ${activeJob.status})`;
       console.log(`[REFRESH JOB SKIPPED] queryKey="${queryKey}" reason="${reason}"`);
+      targetJobId = activeJob._id;
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      activeClientJobs.set(clientIp, targetJobId);
+      console.log(`[SSE] Registered active job ${targetJobId} for client ${clientIp}`);
     }
 
     // Subscribe to pubSub channel for updates (effective when Redis is configured)

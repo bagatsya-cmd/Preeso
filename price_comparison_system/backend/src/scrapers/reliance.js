@@ -1,5 +1,6 @@
 const BaseScraper = require('./baseScraper');
 const imageValidator = require('../utils/imageValidator');
+const { extractImageInBrowser, logImageExtraction, cleanImageUrl, validateImageUrl } = require('../utils/imageExtractor');
 
 class RelianceScraper extends BaseScraper {
   constructor() {
@@ -24,7 +25,7 @@ class RelianceScraper extends BaseScraper {
     });
   }
 
-  async search(query) {
+  async search(query, jobId = null) {
     const url = `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
 
     return this.scrapeWithRetry(url, async (page) => {
@@ -47,17 +48,19 @@ class RelianceScraper extends BaseScraper {
             const link = slug ? `https://www.reliancedigital.in/product/${slug}` : `https://www.reliancedigital.in/products?q=${encodeURIComponent(query)}`;
             
             // Image extraction from medias
-            let image = '';
+            let image = null;
             if (item.medias && item.medias.length > 0) {
-              image = item.medias[0].url || '';
+              const cleaned = cleanImageUrl(item.medias[0].url || '');
+              image = validateImageUrl(cleaned, 'https://www.reliancedigital.in') || null;
             }
+            logImageExtraction('Reliance Digital', title, image, image ? 'json' : null);
 
             items.push({
               title,
               price,
               originalPrice: price,
               link,
-              image: imageValidator.validateImage(image) || null,
+              image,
               brand: item.brand && item.brand.name ? item.brand.name : 'Unknown',
               platform: 'Reliance Digital',
               inStock: true
@@ -80,9 +83,10 @@ class RelianceScraper extends BaseScraper {
         console.log('[Reliance Digital] details-container not found within 10s. Hydration status: failed or delayed.');
       });
 
-      const rawProducts = await page.evaluate(() => {
+      const rawProducts = await page.evaluate((extractImgFn) => {
         const items = [];
         const detailAnchors = Array.from(document.querySelectorAll('a.details-container'));
+        const extractImg = new Function('return ' + extractImgFn)();
 
         for (const anchor of detailAnchors.slice(0, 12)) {
           try {
@@ -109,42 +113,33 @@ class RelianceScraper extends BaseScraper {
 
             const parent      = anchor.parentElement;
             const grandparent = parent ? parent.parentElement : null;
-            const imgAnchor   = grandparent ? grandparent.querySelector('a.product-card-image') : null;
-            const imgEl       = imgAnchor ? imgAnchor.querySelector('img') : null;
-            let image = '';
-            if (imgEl) {
-              // Image priority: currentSrc > src > data-src > srcset[0]
-              const srcsetFirst = (imgEl.getAttribute('srcset') || '').split(' ')[0];
-              const candidates  = [
-                imgEl.currentSrc,
-                imgEl.getAttribute('src'),
-                imgEl.getAttribute('data-src'),
-                srcsetFirst,
-              ];
-              for (const candidate of candidates) {
-                if (candidate && !candidate.startsWith('data:') && !candidate.includes('base64') && candidate.length > 10) {
-                  image = candidate;
-                  break;
-                }
-              }
-            }
+            const container   = grandparent || anchor;
 
-            items.push({ title, price, link, image });
+            const imgResult = extractImg(container, 'Reliance Digital', window.location.href);
+            const image = imgResult.image;
+            const sourceAttr = imgResult.sourceAttr;
+
+            items.push({ title, price, link, image, sourceAttr });
           } catch (e) {}
         }
         return items;
-      });
+      }, extractImageInBrowser.toString());
 
       console.log(`[Reliance Digital] Hydration status: ${hydrated ? 'hydrated' : 'not-hydrated'}. Raw scrape returned ${rawProducts.length} items.`);
 
-      return rawProducts.map(p => ({
-        ...p,
-        image: imageValidator.validateImage(p.image) || null,
-        originalPrice: p.price,
-        platform: 'Reliance Digital',
-        inStock: true
-      }));
-    }, query);
+      return rawProducts.map(p => {
+        logImageExtraction('Reliance Digital', p.title, p.image, p.sourceAttr);
+        return {
+          title: p.title,
+          price: p.price,
+          link: p.link,
+          image: p.image || null,
+          originalPrice: p.price,
+          platform: 'Reliance Digital',
+          inStock: true
+        };
+      });
+    }, query, jobId);
   }
 }
 

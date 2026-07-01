@@ -1,5 +1,6 @@
 const BaseScraper = require('./baseScraper');
 const imageValidator = require('../utils/imageValidator');
+const { extractImageInBrowser, logImageExtraction } = require('../utils/imageExtractor');
 
 class FlipkartScraper extends BaseScraper {
   constructor() {
@@ -7,7 +8,7 @@ class FlipkartScraper extends BaseScraper {
     this.containerSelector = 'div[data-id]';
   }
 
-  async search(query) {
+  async search(query, jobId = null) {
     const url = `https://www.flipkart.com/search?q=${encodeURIComponent(query)}`;
     
     return this.scrapeWithRetry(url, async (page) => {
@@ -38,9 +39,10 @@ class FlipkartScraper extends BaseScraper {
 
       let rawProducts = [];
       for (let attempt = 1; attempt <= 3; attempt++) {
-        rawProducts = await page.evaluate((selector) => {
+        rawProducts = await page.evaluate((selector, extractImgFn) => {
           const elements = Array.from(document.querySelectorAll(selector));
           const items = [];
+          const extractImg = new Function('return ' + extractImgFn)();
           
           for (const element of elements.slice(0, 12)) {
             try {
@@ -88,21 +90,10 @@ class FlipkartScraper extends BaseScraper {
                 if (!isNaN(orig)) originalPrice = orig;
               }
 
-              // Image priority: currentSrc > data-src > src
-              const imgEl = element.querySelector('img.MZeksS, img._396cs4, img.DByuf4, img.CXW8mj, img');
-              let image = '';
-              if (imgEl) {
-                const currentSrc = imgEl.currentSrc;
-                const dataSrc    = imgEl.getAttribute('data-src');
-                const src        = imgEl.getAttribute('src');
-
-                for (const candidate of [currentSrc, dataSrc, src]) {
-                  if (candidate && !candidate.startsWith('data:') && !candidate.includes('base64') && !candidate.includes('placeholder')) {
-                    image = candidate;
-                    break;
-                  }
-                }
-              }
+              // Image extraction
+              const imgResult = extractImg(element, 'Flipkart', window.location.href);
+              const image = imgResult.image;
+              const sourceAttr = imgResult.sourceAttr;
 
               // Link
               const mainLinkEl = element.querySelector('a');
@@ -110,11 +101,11 @@ class FlipkartScraper extends BaseScraper {
               if (!link || link === 'about:blank' || link.includes('javascript:')) continue;
               if (link.startsWith('/')) link = 'https://www.flipkart.com' + link;
 
-              items.push({ platform: 'Flipkart', title, price, originalPrice, link, image, brand: brand || 'Unknown', inStock: true });
+              items.push({ platform: 'Flipkart', title, price, originalPrice, link, image, sourceAttr, brand: brand || 'Unknown', inStock: true });
             } catch (_) {}
           }
           return items;
-        }, this.containerSelector);
+        }, this.containerSelector, extractImageInBrowser.toString());
 
         if (rawProducts.length > 0) {
           break;
@@ -128,13 +119,13 @@ class FlipkartScraper extends BaseScraper {
 
       for (const p of rawProducts) {
         if (p && p.link && p.link.startsWith('http')) {
-          p.image = imageValidator.validateImage(p.image) || null;
+          logImageExtraction('Flipkart', p.title, p.image, p.sourceAttr);
           results.push(p);
         }
       }
 
       return results;
-    }, query);
+    }, query, jobId);
   }
 }
 

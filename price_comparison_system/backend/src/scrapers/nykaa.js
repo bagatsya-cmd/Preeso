@@ -1,5 +1,6 @@
 const BaseScraper = require('./baseScraper');
 const imageValidator = require('../utils/imageValidator');
+const { extractImageInBrowser, logImageExtraction } = require('../utils/imageExtractor');
 
 class NykaaScraper extends BaseScraper {
   constructor() {
@@ -22,7 +23,7 @@ class NykaaScraper extends BaseScraper {
     });
   }
 
-  async search(query) {
+  async search(query, jobId = null) {
     const url = `https://www.nykaa.com/search/result/?q=${encodeURIComponent(query)}&ptype=search&id=0`;
 
     return this.scrapeWithRetry(url, async (page) => {
@@ -79,10 +80,11 @@ class NykaaScraper extends BaseScraper {
       // Fallback to DOM parsing
       if (rawProducts.length === 0) {
         console.log('[Nykaa] Extracting products using DOM parser.');
-        rawProducts = await page.evaluate((finalUrl) => {
+        rawProducts = await page.evaluate((finalUrl, extractImgFn) => {
           const items = [];
           const isDomain = finalUrl.includes('nykaafashion') ? 'fashion' : 'beauty';
           const baseDomain = isDomain === 'fashion' ? 'https://www.nykaafashion.com' : 'https://www.nykaa.com';
+          const extractImg = new Function('return ' + extractImgFn)();
 
           const productLinks = Array.from(document.querySelectorAll(
             'a[href*="/p/"], a[href*="productId="], [data-test-id="product-card"] a, [class*="productWrapper"] a'
@@ -114,18 +116,9 @@ class NykaaScraper extends BaseScraper {
               }
 
               // Image extraction with fallbacks
-              const imgEl = linkEl.querySelector('img') || card.querySelector('img');
-              let image = '';
-              if (imgEl) {
-                const srcs = [
-                  imgEl.getAttribute('data-src'),
-                  imgEl.currentSrc,
-                  imgEl.getAttribute('src'),
-                  imgEl.getAttribute('data-lazy'),
-                  (imgEl.getAttribute('srcset') || '').split(' ')[0],
-                ];
-                image = srcs.find(s => s && !s.startsWith('data:') && s.length > 10) || '';
-              }
+              const imgResult = extractImg(card, 'Nykaa', window.location.href);
+              const image = imgResult.image;
+              const sourceAttr = imgResult.sourceAttr;
 
               // Title extraction with fallbacks
               const h2El = linkEl.querySelector('h2') ||
@@ -153,23 +146,23 @@ class NykaaScraper extends BaseScraper {
               const ratingMatch = allText.match(/([1-5]\.\d)/);
               const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
 
-              items.push({ title, price, originalPrice, link, image, rating });
+              items.push({ title, price, originalPrice, link, image, sourceAttr, rating });
             } catch (_) {}
           }
           return items;
-        }, finalUrl);
+        }, finalUrl, extractImageInBrowser.toString());
       }
 
       console.log(`[Nykaa] Extracted count: ${rawProducts.length}`);
 
       for (const p of rawProducts) {
-        const validatedImg = imageValidator.validateImage(p.image);
+        logImageExtraction('Nykaa', p.title, p.image, p.sourceAttr);
         results.push({
           title:         p.title,
           price:         p.price,
           originalPrice: p.originalPrice || p.price,
           link:          p.link,
-          image:         validatedImg || p.image || null,
+          image:         p.image || null,
           rating:        p.rating || null,
           brand:         'Unknown',
           platform:      'Nykaa',
@@ -178,7 +171,7 @@ class NykaaScraper extends BaseScraper {
       }
 
       return results;
-    }, query);
+    }, query, jobId);
   }
 }
 

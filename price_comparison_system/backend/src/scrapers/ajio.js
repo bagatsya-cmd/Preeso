@@ -1,5 +1,6 @@
 const BaseScraper = require('./baseScraper');
 const imageValidator = require('../utils/imageValidator');
+const { extractImageInBrowser, logImageExtraction } = require('../utils/imageExtractor');
 
 class AjioScraper extends BaseScraper {
   constructor() {
@@ -22,7 +23,7 @@ class AjioScraper extends BaseScraper {
     });
   }
 
-  async search(query) {
+  async search(query, jobId = null) {
     const url = `https://www.ajio.com/search/?text=${encodeURIComponent(query)}`;
 
     return this.scrapeWithRetry(url, async (page) => {
@@ -39,9 +40,10 @@ class AjioScraper extends BaseScraper {
       });
       await new Promise(r => setTimeout(r, 800));
 
-      const rawProducts = await page.evaluate(() => {
+      const rawProducts = await page.evaluate((extractImgFn) => {
         const items = [];
         const cards = Array.from(document.querySelectorAll('.rilrtl-products-list__item'));
+        const extractImg = new Function('return ' + extractImgFn)();
 
         for (const card of cards.slice(0, 12)) {
           try {
@@ -94,32 +96,25 @@ class AjioScraper extends BaseScraper {
               if (mrp > price) originalPrice = mrp;
             }
 
-            const imgEl = card.querySelector('img.rilrtl-lazy-img, img');
-            let image = '';
-            if (imgEl) {
-              const srcs = [
-                imgEl.currentSrc,
-                imgEl.getAttribute('src'),
-                imgEl.getAttribute('data-src'),
-                (imgEl.getAttribute('srcset') || '').split(' ')[0],
-              ];
-              image = srcs.find(s => s && !s.startsWith('data:') && !s.includes('base64') && s.length > 10) || '';
-            }
+            // Image extraction using helper
+            const imgResult = extractImg(card, 'AJIO', window.location.href);
+            const image = imgResult.image;
+            const sourceAttr = imgResult.sourceAttr;
 
-            items.push({ title, price, originalPrice, link, image, brand });
+            items.push({ title, price, originalPrice, link, image, sourceAttr, brand });
           } catch (_) {}
         }
         return items;
-      });
+      }, extractImageInBrowser.toString());
 
       for (const p of rawProducts) {
-        const validatedImg = imageValidator.validateImage(p.image);
+        logImageExtraction('AJIO', p.title, p.image, p.sourceAttr);
         results.push({
           title:         p.title,
           price:         p.price,
           originalPrice: p.originalPrice || p.price,
           link:          p.link,
-          image:         validatedImg || p.image || null,
+          image:         p.image || null,
           brand:         p.brand || 'Unknown',
           platform:      'AJIO',
           inStock:       true,
@@ -127,7 +122,7 @@ class AjioScraper extends BaseScraper {
       }
 
       return results;
-    }, query);
+    }, query, jobId);
   }
 }
 

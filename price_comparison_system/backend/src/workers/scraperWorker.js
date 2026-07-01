@@ -20,10 +20,12 @@ const APPROVED_PLATFORMS = [
   { name: 'nykaa', scraper: nykaaScraper },
   { name: 'reliance', scraper: relianceScraper }
 ];
+const cancellationManager = require('../utils/cancellationManager');
 
 async function runScraping(job) {
   const query = job.query;
   const queryKey = job.queryKey;
+  const jobId = job._id;
   
   console.log("scrapeStarted");
   console.log("Active retailers:", APPROVED_PLATFORMS.length);
@@ -31,12 +33,20 @@ async function runScraping(job) {
   
   let totalFetched = 0;
   let totalInserted = 0;
+  let cancelled = false;
 
   // Execute scrapers concurrently and process outcomes incrementally
   const scrapePromises = APPROVED_PLATFORMS.map(async (platform) => {
     try {
+      // Check cancellation before retailer starts
+      await cancellationManager.checkCancelled(jobId);
+
       console.log(`[ScraperWorker] Running scraper: ${platform.name} for "${query}"`);
-      const results = await platform.scraper.search(query) || [];
+      const results = await platform.scraper.search(query, jobId) || [];
+
+      // Check cancellation after retailer completes
+      await cancellationManager.checkCancelled(jobId);
+
       console.log(`[ScraperWorker] Scraper ${platform.name} completed. Found ${results.length} items.`);
       
       totalFetched += results.length;
@@ -59,6 +69,9 @@ async function runScraping(job) {
       });
 
       if (itemsToUpsert.length > 0) {
+        // Check cancellation before DB writes
+        await cancellationManager.checkCancelled(jobId);
+
         const operations = itemsToUpsert.map((item) => ({
           updateOne: {
             filter: { uniqueHash: item.uniqueHash },
@@ -73,18 +86,31 @@ async function runScraping(job) {
         console.log("productsInserted", inserted);
         console.log("when products are inserted");
         
+        // Check cancellation before emitting update notification
+        await cancellationManager.checkCancelled(jobId);
+
         // Notify aggregator that there is new data to aggregate
         await ScrapeJob.findByIdAndUpdate(job._id, {
           $set: { needsAggregation: true, updatedAt: new Date() }
         });
       }
     } catch (err) {
+      if (err.message === 'JOB_CANCELLED') {
+        cancelled = true;
+        console.log(`[ScraperWorker] Job cancelled during ${platform.name} scraping for "${query}".`);
+        return; // Stop this platform's work silently
+      }
       console.error(`[ScraperWorker] Scraper ${platform.name} failed:`, err.message);
     }
   });
 
   // Run all scrapers in parallel
   await Promise.all(scrapePromises);
+
+  if (cancelled) {
+    console.log(`[ScraperWorker] Scraping aborted (job cancelled) for query: "${query}"`);
+    throw new Error('JOB_CANCELLED');
+  }
 
   console.log("scrapeFinished");
   console.log(`[ScraperWorker] Scraping finished. Total fetched: ${totalFetched}, Total inserted: ${totalInserted}`);
@@ -138,6 +164,13 @@ async function startWorker() {
           
           await runScraping(job);
           
+          // Double check DB status to see if it was cancelled in the meantime
+          const checkJob = await ScrapeJob.findById(job._id);
+          if (checkJob && checkJob.status === 'cancelled') {
+            console.log(`[ScraperWorker] Job ${job._id} was cancelled during scraping. Skipping status update.`);
+            continue;
+          }
+
           console.log("Scraping completed");
           console.log(`[ScraperWorker] Scraping completed for query: "${job.query}"`);
           
@@ -147,7 +180,11 @@ async function startWorker() {
           await job.save();
         } catch (err) {
           console.error(`[ScraperWorker] Scrape failed for job ${job._id}:`, err);
-          job.status = 'failed';
+          if (err.message === 'JOB_CANCELLED') {
+            job.status = 'cancelled';
+          } else {
+            job.status = 'failed';
+          }
           job.error = err.message;
           job.updatedAt = new Date();
           await job.save();

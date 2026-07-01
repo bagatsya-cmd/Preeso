@@ -104,8 +104,9 @@ async function startWorker() {
   
   while (true) {
     try {
-      // Find a job that needs incremental aggregation OR is ready for final aggregation
+      // Find a job that needs incremental aggregation OR is ready for final aggregation, excluding cancelled ones
       const job = await ScrapeJob.findOne({
+        status: { $ne: 'cancelled' },
         $or: [
           { status: 'scraped' },
           { needsAggregation: true },
@@ -124,7 +125,7 @@ async function startWorker() {
         }
         
         const lockedJob = await ScrapeJob.findOneAndUpdate(
-          { _id: job._id },
+          { _id: job._id, status: { $ne: 'cancelled' } },
           { $set: updateObj },
           { new: true }
         );
@@ -136,6 +137,13 @@ async function startWorker() {
             
             await runAggregation(lockedJob);
             
+            // Re-verify that job has not been cancelled during aggregation before marking completed
+            const checkJob = await ScrapeJob.findById(lockedJob._id);
+            if (checkJob && checkJob.status === 'cancelled') {
+              console.log(`[AggregatorWorker] Job ${lockedJob._id} was cancelled during aggregation. Skipping completion.`);
+              continue;
+            }
+
             // If the job was scraped/aggregating, complete it
             if (lockedJob.status === 'aggregating') {
               lockedJob.status = 'completed';
