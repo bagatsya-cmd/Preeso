@@ -2,6 +2,7 @@ const ProductResult = require('../models/productResult');
 const ScrapeJob = require('../models/scrapeJob');
 const pubSub = require('../utils/pubSub');
 const { normalizeQuery } = require('../utils/queryNormalizer');
+const { rankLiveResults } = require('../utils/liveSearchRanker');
 const logger = require('../utils/logger');
 
 // ── Stop-words excluded from keyword matching ──────────────────────────────────
@@ -202,12 +203,14 @@ exports.streamSearch = async (req, res) => {
       refreshDelivered = true;
 
       const sanitized = sanitizeProducts(data.products || []);
-      console.log(`[PIPELINE-TRACE] Stage 6a (SSE Send): Sending ${sanitized.length} products to frontend via PubSub path (final=true)`);
+      // Rank live-scraped results by relevance before streaming
+      const ranked = rankLiveResults(sanitized, normalizedQuery);
+      console.log(`[PIPELINE-TRACE] Stage 6a (SSE Send): Sending ${ranked.length} ranked products to frontend via PubSub path (final=true)`);
       // Stream refreshed products to the client
       send({
         type: 'partial-results',
         final: true,
-        products: sanitized
+        products: ranked
       });
 
       // Signal completion
@@ -249,11 +252,13 @@ exports.streamSearch = async (req, res) => {
 
             refreshDelivered = true;
 
-            console.log(`[PIPELINE-TRACE] Stage 6b (SSE Send): Sending ${sanitized.length} products to frontend via polling path (final=true)`);
+            // Rank live-scraped results by relevance before streaming
+            const ranked = rankLiveResults(sanitized, normalizedQuery);
+            console.log(`[PIPELINE-TRACE] Stage 6b (SSE Send): Sending ${ranked.length} ranked products to frontend via polling path (final=true)`);
             send({
               type: 'partial-results',
               final: true,
-              products: sanitized
+              products: ranked
             });
           }
 
