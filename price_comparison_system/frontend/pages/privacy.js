@@ -6,8 +6,14 @@ export default function PrivacyPolicy() {
   return (
     <>
       <Head>
-        <title>Privacy Policy — Preeso</title>
+        <title>Privacy Policy | Preeso</title>
         <meta name="description" content="Privacy Policy for Preeso. Learn how we collect, use, and protect your personal information." />
+        <link rel="canonical" href="https://www.preeso.co.in/privacy" />
+        <meta property="og:title" content="Privacy Policy | Preeso" />
+        <meta property="og:description" content="Privacy Policy for Preeso. Learn how we collect, use, and protect your personal information." />
+        <meta property="og:url" content="https://www.preeso.co.in/privacy" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.preeso.co.in/preeso-icon.png" />
         <link rel="icon" href="/favicon.png" />
       </Head>
 

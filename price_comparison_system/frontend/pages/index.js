@@ -411,13 +411,36 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Preeso — Smart Prices. Smarter Shopping.</title>
-        <meta name="description" content={`Preeso compares prices across ${enableAmazon ? 'Amazon, ' : ''}Flipkart, Myntra, AJIO, Nykaa and more — with instant results and live price updates.`} />
+        <title>Preeso - Compare Products Across Multiple Online Stores</title>
+        <meta name="description" content="Compare products from multiple online stores in one place. Find better deals, compare prices, and shop smarter with Preeso." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta property="og:title" content="Preeso — Smart Prices. Smarter Shopping." />
-        <meta property="og:description" content="Compare product prices across all major Indian e-commerce platforms instantly." />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content="Preeso - Compare Products Across Multiple Online Stores" />
+        <meta property="og:description" content="Compare products from multiple online stores in one place. Find better deals, compare prices, and shop smarter with Preeso." />
+        <meta property="og:url" content="https://www.preeso.co.in" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.preeso.co.in/preeso-icon.png" />
+
+        {/* Canonical Link */}
+        <link rel="canonical" href="https://www.preeso.co.in/" />
+
         <link rel="icon" href="/favicon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+
+        {/* Structured Data / Organization Schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "Preeso",
+              "url": "https://www.preeso.co.in",
+              "logo": "https://www.preeso.co.in/preeso-icon.png"
+            })
+          }}
+        />
         <style>{`
           .desktop-only { display: block; }
           .mobile-only  { display: none; }

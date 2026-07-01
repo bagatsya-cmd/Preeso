@@ -42,8 +42,14 @@ export default function ContactUs() {
   return (
     <>
       <Head>
-        <title>Contact Us — Preeso</title>
+        <title>Contact Us | Preeso</title>
         <meta name="description" content="Get in touch with the Preeso support and licensing team." />
+        <link rel="canonical" href="https://www.preeso.co.in/contact" />
+        <meta property="og:title" content="Contact Us | Preeso" />
+        <meta property="og:description" content="Get in touch with the Preeso support and licensing team." />
+        <meta property="og:url" content="https://www.preeso.co.in/contact" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.preeso.co.in/preeso-icon.png" />
         <link rel="icon" href="/favicon.png" />
       </Head>
 

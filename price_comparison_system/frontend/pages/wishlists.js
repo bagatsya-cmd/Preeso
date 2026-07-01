@@ -25,8 +25,14 @@ export default function WishlistPage() {
   return (
     <>
       <Head>
-        <title>My Wishlist — Preeso</title>
+        <title>My Wishlist | Preeso</title>
         <meta name="description" content="Your saved products on Preeso — track prices and get the best deals." />
+        <link rel="canonical" href="https://www.preeso.co.in/wishlists" />
+        <meta property="og:title" content="My Wishlist | Preeso" />
+        <meta property="og:description" content="Your saved products on Preeso — track prices and get the best deals." />
+        <meta property="og:url" content="https://www.preeso.co.in/wishlists" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.preeso.co.in/preeso-icon.png" />
         <link rel="icon" href="/favicon.png" />
       </Head>
       <Navbar />

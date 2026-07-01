@@ -89,6 +89,17 @@ export default function ProductPage() {
     <>
       <Head>
         <title>{product.name} | Preeso</title>
+        <meta name="description" content={`Compare prices for ${product.name} across Flipkart, Myntra, AJIO, Nykaa and more. Find the best deal and track price history with Preeso.`} />
+        <link rel="canonical" href={`https://www.preeso.co.in/product/${product._id || id}`} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content={`${product.name} | Preeso`} />
+        <meta property="og:description" content={`Compare prices for ${product.name} across Flipkart, Myntra, AJIO, Nykaa and more. Find the best deal and track price history with Preeso.`} />
+        <meta property="og:url" content={`https://www.preeso.co.in/product/${product._id || id}`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content={product.imageUrl || product.image || "https://www.preeso.co.in/preeso-icon.png"} />
+
+        <link rel="icon" href="/favicon.png" />
         <style>{`
           .mobile-buy-bar {
             position: fixed;

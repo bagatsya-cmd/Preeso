@@ -6,8 +6,14 @@ export default function TermsAndConditions() {
   return (
     <>
       <Head>
-        <title>Terms & Conditions — Preeso</title>
+        <title>Terms & Conditions | Preeso</title>
         <meta name="description" content="Terms and Conditions for using Preeso's price comparison and tracking platform." />
+        <link rel="canonical" href="https://www.preeso.co.in/terms" />
+        <meta property="og:title" content="Terms & Conditions | Preeso" />
+        <meta property="og:description" content="Terms and Conditions for using Preeso's price comparison and tracking platform." />
+        <meta property="og:url" content="https://www.preeso.co.in/terms" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.preeso.co.in/preeso-icon.png" />
         <link rel="icon" href="/favicon.png" />
       </Head>
 
