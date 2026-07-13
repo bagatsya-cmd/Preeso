@@ -5,6 +5,7 @@ const { normalizeQuery } = require('../utils/queryNormalizer');
 const { rankLiveResults } = require('../utils/liveSearchRanker');
 const logger = require('../utils/logger');
 const cancellationManager = require('../utils/cancellationManager');
+const { SCRAPING_ENABLED } = require('../config/features');
 
 const activeClientJobs = new Map(); // ip -> jobId
 
@@ -126,6 +127,64 @@ exports.getActiveSearches = () => activeSearches;
 const SSE_MAX_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes max SSE open time
 
 exports.streamSearch = async (req, res) => {
+  const { q: query } = req.query;
+  if (!query?.trim()) {
+    return res.status(400).json({ error: 'Query is required' });
+  }
+
+  const normalizedQuery = normalizeQuery(query);
+  const queryKey = normalizedQuery.replace(/\s+/g, '_');
+  const searchStart = Date.now();
+
+  if (!SCRAPING_ENABLED) {
+    console.log('[SSE RECEIVED]', query);
+    
+    // SSE headers
+    res.writeHead(200, {
+      'Content-Type':            'text/event-stream',
+      'Cache-Control':           'no-cache, no-store',
+      'Connection':              'keep-alive',
+      'X-Accel-Buffering':       'no',
+      'Access-Control-Allow-Origin': process.env.FRONTEND_URL || '*',
+    });
+
+    try {
+      const cachedResult = await ProductResult.findOne({ queryKey }).lean();
+      const cachedCount = cachedResult?.products?.length || 0;
+      console.log(`[DB RESULT] queryKey="${queryKey}" productResultsCount=${cachedCount}`);
+
+      if (cachedResult && cachedCount > 0) {
+        const sanitized = sanitizeProducts(cachedResult.products);
+        console.log('[SSE] Sending results (final=true)');
+        res.write(`data: ${JSON.stringify({ type: 'partial-results', final: true, products: sanitized })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'complete', final: true, totalUnique: sanitized.length, totalMs: Date.now() - searchStart })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'completed', totalUnique: sanitized.length, totalMs: Date.now() - searchStart })}\n\n`);
+        console.log('[SSE] Closing stream');
+        res.end();
+        return;
+      }
+
+      // Catalog fallback
+      const catalogProducts = await searchCatalog(normalizedQuery);
+      console.log(`[SSE] Catalog HIT for "${query}"`);
+      const sanitizedCatalog = sanitizeProducts(catalogProducts);
+      console.log('[SSE] Sending results (final=true)');
+      res.write(`data: ${JSON.stringify({ type: 'partial-results', final: true, cached: true, source: 'catalog', products: sanitizedCatalog })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'complete', final: true, totalUnique: sanitizedCatalog.length, totalMs: Date.now() - searchStart })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'completed', totalUnique: sanitizedCatalog.length, totalMs: Date.now() - searchStart })}\n\n`);
+      console.log('[SSE] Closing stream');
+      res.end();
+      return;
+    } catch (err) {
+      console.error('[SSE] Read-only search error:', err.message);
+      res.write(`data: ${JSON.stringify({ type: 'error', message: 'Search failed.' })}\n\n`);
+      console.log('[SSE] Closing stream');
+      res.end();
+      return;
+    }
+  }
+
+  // ── Local Development / Scraping Enabled ──────────────────────────────────
   console.log('[SSE RECEIVED]', req.query.q, req.ip, req.headers.host);
 
   // 1. Cancel previous client search immediately
@@ -142,15 +201,6 @@ exports.streamSearch = async (req, res) => {
   }
 
   activeSearches++;
-  const { q: query } = req.query;
-  if (!query?.trim()) {
-    activeSearches--;
-    return res.status(400).json({ error: 'Query is required' });
-  }
-
-  const normalizedQuery = normalizeQuery(query);
-  const queryKey = normalizedQuery.replace(/\s+/g, '_');
-  const searchStart = Date.now();
   const alive = { ok: true };
   const send = makeSend(res, alive);
 

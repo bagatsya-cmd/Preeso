@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+const { SCRAPING_ENABLED } = require('../config/features');
 
 const ScrapeJob = require('../models/scrapeJob');
 const ScrapedProduct = require('../models/scrapedProduct');
@@ -86,6 +87,10 @@ async function runAggregation(job) {
 }
 
 async function startWorker() {
+  if (!SCRAPING_ENABLED) {
+    console.log('[AggregatorWorker] Scraping disabled.');
+    return;
+  }
   console.log('[AggregatorWorker] Worker loop started...');
   
   try {
@@ -174,6 +179,10 @@ async function startWorker() {
 
 // Connect to MongoDB and run
 if (require.main === module) {
+  if (!SCRAPING_ENABLED) {
+    console.log('[AggregatorWorker] Scraping disabled. Exiting.');
+    process.exit(0);
+  }
   const mongoUri = process.env.MONGO_URI;
   if (!mongoUri) {
     console.error('MONGO_URI not specified in environment.');

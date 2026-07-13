@@ -4,6 +4,7 @@ const User = require('../models/User');
 const ProductResult = require('../models/productResult');
 const ScrapeJob = require('../models/scrapeJob');
 const { normalizeQuery } = require('../utils/queryNormalizer');
+const { SCRAPING_ENABLED } = require('../config/features');
 
 function sanitizeProducts(products) {
   if (!products) return [];
@@ -51,6 +52,12 @@ exports.searchProducts = async (req, res) => {
 
     const normalizedQuery = normalizeQuery(query);
     const queryKey = normalizedQuery.replace(/\s+/g, '_');
+
+    if (!SCRAPING_ENABLED) {
+      const cachedResult = await ProductResult.findOne({ queryKey }).lean();
+      console.log(`[API Search] Read-only mode: queryKey="${queryKey}" resultCount=${cachedResult?.products?.length || 0}`);
+      return res.json(cachedResult ? sanitizeProducts(cachedResult.products) : []);
+    }
 
     // 1. Check DB cache
     const cachedResult = await ProductResult.findOne({ queryKey }).lean();

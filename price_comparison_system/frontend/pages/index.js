@@ -184,6 +184,12 @@ export default function Home() {
               setLiveCount(merged.length);
               return merged;
             });
+            if (data.final) {
+              console.log('[FRONTEND] stream complete (final=true)');
+              setSearchState('completed');
+              setStreamStatus({ System: `Found ${data.products?.length || 0} products` });
+              eventSource.close();
+            }
             break;
 
           case 'scraper-success':
