@@ -1,0 +1,923 @@
+{
+  "nykaa": [
+    {
+      "title": "Foxtale Hula Hoop De-Tan Body Wash",
+      "url": "https://www.nykaa.com/foxtale-hula-hoop-de-tan-body-wash/p/25527489?productId=25527489&pps=1",
+      "scrapedPrice": 399,
+      "livePrice": 339,
+      "mrp": 339,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 399, Live price: 339"
+    },
+    {
+      "title": "FoxTale Hula Hoop Exfoliating Body Wash by Foxtale , Exfolia...",
+      "url": "https://www.nykaa.com/foxtale-mediterranean-mood-exfoliating-body-wash/p/17814247?productId=17814247&pps=2",
+      "scrapedPrice": 399,
+      "livePrice": 339,
+      "mrp": 339,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 399, Live price: 339"
+    },
+    {
+      "title": "FoxTale Hula Hoop Brightening Body Wash by Foxtale , Exfolia...",
+      "url": "https://www.nykaa.com/foxtale-flower-power-brightening-body-wash/p/16046345?productId=16046345&pps=4",
+      "scrapedPrice": 399,
+      "livePrice": 327,
+      "mrp": 327,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 399, Live price: 327"
+    },
+    {
+      "title": "FoxTale Hula Hoop Brightening Body Lotion by Foxtale , Brigh...",
+      "url": "https://www.nykaa.com/foxtale-flower-power-brightening-body-lotion/p/16046344?productId=16046344&pps=3",
+      "scrapedPrice": 499,
+      "livePrice": 409,
+      "mrp": 409,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 499, Live price: 409"
+    },
+    {
+      "title": "Foxtale Hula Hoop Foaming 10% De-Tan Body Scrub",
+      "url": "https://www.nykaa.com/foxtale-hula-hoop-foaming-10percent-de-tan-body-scrub/p/25943047?productId=25943047&pps=5",
+      "scrapedPrice": 649,
+      "livePrice": 545,
+      "mrp": 545,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 649, Live price: 545"
+    },
+    {
+      "title": "Foxtale Hula Hoop Moroccan Silk Exfoliating Body Scrub",
+      "url": "https://www.nykaa.com/foxtale-hula-hoop-moroccan-silk-exfoliating-body-scrub/p/23014240?productId=23014240&pps=6",
+      "scrapedPrice": 649,
+      "livePrice": 545,
+      "mrp": 545,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 649, Live price: 545"
+    },
+    {
+      "title": "Foxtale Hula Hoop Ultra Nourishing Body Lotion, Hydrates & R...",
+      "url": "https://www.nykaa.com/foxtale-aqua-plunge-deep-moisture-body-lotion/p/16046346?productId=16046346&pps=8",
+      "scrapedPrice": 349,
+      "livePrice": 279,
+      "mrp": 279,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 349, Live price: 279"
+    },
+    {
+      "title": "FoxTale Hula Hoop HydraLock Body Wash, 24-Hrs Long Hydration...",
+      "url": "https://www.nykaa.com/foxtale-aqua-plunge-hydrating-body-wash/p/16046347?productId=16046347&pps=7",
+      "scrapedPrice": 329,
+      "livePrice": 263,
+      "mrp": 263,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 329, Live price: 263"
+    },
+    {
+      "title": "Foxtale Hula Hoop Always On Brightening Underarm Roll-On",
+      "url": "https://www.nykaa.com/foxtale-hula-hoop-always-on-brightening-underarm-roll-on/p/25823193?productId=25823193&pps=10",
+      "scrapedPrice": 399,
+      "livePrice": 339,
+      "mrp": 339,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 399, Live price: 339"
+    },
+    {
+      "title": "FoxTale Hula Hoop Brightening Body Wash & Body Lotion by Fox...",
+      "url": "https://www.nykaa.com/foxtale-radiance-ritual-duo/p/16409186?productId=16409186&pps=9",
+      "scrapedPrice": 898,
+      "livePrice": 691,
+      "mrp": 691,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 898, Live price: 691"
+    },
+    {
+      "title": "Foxtale Hula Hoop Exfoliating Body Wash + Exfoliating Body S...",
+      "url": "https://www.nykaa.com/foxtale-hula-hoop-exfoliating-body-wash-exfoliating-body-scrub-by-foxtale-for-smooth-skin/p/24989778?productId=24989778&pps=11",
+      "scrapedPrice": 1048,
+      "livePrice": 838,
+      "mrp": 838,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 1048, Live price: 838"
+    },
+    {
+      "title": "Foxtale Hula Hoop 8% De-Tan Body Wash + Foaming Scrub",
+      "url": "https://www.nykaa.com/foxtale-hula-hoop-8percent-de-tan-body-wash-foaming-scrub/p/26773778?productId=26773778&pps=12",
+      "scrapedPrice": 1048,
+      "livePrice": 838,
+      "mrp": 838,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 1048, Live price: 838"
+    },
+    {
+      "title": "Treemoda Pink Silicone Flexible Back Case (iPhone 15)",
+      "url": "https://www.nykaa.com/treemoda-pink-silicone-flexible-back-case-for-iphone-15/p/13595243?productId=13595243&skuId=13595218&pps=1",
+      "scrapedPrice": 2999,
+      "livePrice": 750,
+      "mrp": 750,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 2999, Live price: 750"
+    },
+    {
+      "title": "Treemoda Light Grey Silicone Flexible Back Case (iPhone 15 P...",
+      "url": "https://www.nykaa.com/treemoda-light-grey-silicone-flexible-back-case-for-iphone-15/p/13595236?productId=13595236&skuId=13595191&pps=2",
+      "scrapedPrice": 2999,
+      "livePrice": 750,
+      "mrp": 750,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 2999, Live price: 750"
+    },
+    {
+      "title": "Treemoda Lavender Silicone Flexible Back Case (iPhone 15)",
+      "url": "https://www.nykaa.com/treemoda-lavender-silicone-flexible-back-case-for-iphone-15/p/13595233?productId=13595233&skuId=13595178&pps=3",
+      "scrapedPrice": 2999,
+      "livePrice": 750,
+      "mrp": 750,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 2999, Live price: 750"
+    },
+    {
+      "title": "GRIPP Combat with MagSafe Case Smoke (6.1 Inches) (iPhone 15...",
+      "url": "https://www.nykaa.com/gripp-combat-iphone-15-pro-6-1-with-magsafe-case-smoke/p/13602456?productId=13602456&skuId=13602380&pps=4",
+      "scrapedPrice": 2190,
+      "livePrice": 2190,
+      "mrp": 2190,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "GRIPP Clear Case Clear (6.1 Inches) (iPhone 15 Pro)",
+      "url": "https://www.nykaa.com/gripp-clear-iphone-15-pro-6-1-case-clear/p/13602453?productId=13602453&skuId=13602375&pps=5",
+      "scrapedPrice": 1790,
+      "livePrice": 1790,
+      "mrp": 1790,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Treemoda Red Silicone Flexible Back Case (iPhone 15 Pro)",
+      "url": "https://www.nykaa.com/treemoda-red-silicone-flexible-back-case-for-iphone-15/p/13595232?productId=13595232&skuId=13595175&pps=6",
+      "scrapedPrice": 2999,
+      "livePrice": 750,
+      "mrp": 750,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 2999, Live price: 750"
+    },
+    {
+      "title": "Treemoda Black Silicone Flexible Back Case (iPhone 15)",
+      "url": "https://www.nykaa.com/treemoda-black-silicone-flexible-back-case-for-iphone-15/p/13595235?productId=13595235&skuId=13595186&pps=7",
+      "scrapedPrice": 2999,
+      "livePrice": 750,
+      "mrp": 750,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 2999, Live price: 750"
+    },
+    {
+      "title": "GRIPP Clear with MagSafe Case Clear (6.7 Inches) (iPhone 15 ...",
+      "url": "https://www.nykaa.com/gripp-clear-iphone-15-pro-6-1-with-magsafe-case-clear/p/13602460?productId=13602460&skuId=13602390&pps=8",
+      "scrapedPrice": 1990,
+      "livePrice": 1990,
+      "mrp": 1990,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    }
+  ],
+  "flipkart": [
+    {
+      "title": "K KIRISH K Collapsible Hula Hoop Exercise Ring for Kids and Adults Hula Hoop",
+      "url": "https://www.flipkart.com/k-kirish-collapsible-hula-hoop-exercise-ring-kids-adults/p/itm1d1a03840c671?pid=HHPHN7EJUGMSUF8J&lid=LSTHHPHN7EJUGMSUF8JIRDADK&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_2&otracker=search&iid=en_7rX0IlWg7GqJSbFwf3RUjoEEE3XcKg9yjuON5HhkIzpSVmaitwUdWUBpduCXSYZdhwo5oalQoVWOE8ikLDNg0DiMiTqC-WdJlq19oIYLqyyEGSWJqKI7vB3ENT7om1Dq&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 170,
+      "livePrice": 172,
+      "mrp": 172,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 170, Live price: 172"
+    },
+    {
+      "title": "SeBURRY 6 Pcs Colorful Interlock Hula Hoop Ring for Kids Fitness & Play Toy Hula Hoop",
+      "url": "https://www.flipkart.com/seburry-6-pcs-colorful-interlock-hula-hoop-ring-kids-fitness-play-toy/p/itmf1cd5c14ba93b?pid=HHPHHRZGAZZKKEKZ&lid=LSTHHPHHRZGAZZKKEKZMC2LRX&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_4&otracker=search&iid=62e350ec-4a3c-4a32-8205-11738162f8d7.HHPHHRZGAZZKKEKZ.SEARCH&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 150,
+      "livePrice": 146,
+      "mrp": 146,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 150, Live price: 146"
+    },
+    {
+      "title": "INDROVA Collapsible Hula Hoop Exercise Ring for Kids and Adults Hula Hoop",
+      "url": "https://www.flipkart.com/indrova-collapsible-hula-hoop-exercise-ring-kids-adults/p/itm70b452bf04501?pid=HHPHJ3BWEUANSEWW&lid=LSTHHPHJ3BWEUANSEWWB551SL&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_3&otracker=search&iid=62e350ec-4a3c-4a32-8205-11738162f8d7.HHPHJ3BWEUANSEWW.SEARCH&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 162,
+      "livePrice": 157,
+      "mrp": 157,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 162, Live price: 157"
+    },
+    {
+      "title": "INDROVA Collapsible Hula Hoop Exercise Ring for Kids and Adults Hula Hoop",
+      "url": "https://www.flipkart.com/indrova-collapsible-hula-hoop-exercise-ring-kids-adults/p/itmdec2de14657c3?pid=HHPHHTYKZPYWJ8BD&lid=LSTHHPHHTYKZPYWJ8BDQBVP6Y&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&spotlightTagId=default_FkPickId_qoc%2Facb%2Fbtm&srno=s_1_5&otracker=search&iid=62e350ec-4a3c-4a32-8205-11738162f8d7.HHPHHTYKZPYWJ8BD.SEARCH&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 138,
+      "livePrice": 135,
+      "mrp": 135,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 138, Live price: 135"
+    },
+    {
+      "title": "K KIRISH Tricolor Adjustable Hula Hoop 6 Piece for Kids & Adults Fitness Exercise Hula Hoop",
+      "url": "https://www.flipkart.com/k-kirish-tricolor-adjustable-hula-hoop-6-piece-kids-adults-fitness-exercise/p/itm5c07cdf9ca216?pid=HHPHN8AS4DRHDJMV&lid=LSTHHPHN8AS4DRHDJMVN6SVX3&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_6&otracker=search&iid=en_7rX0IlWg7GqJSbFwf3RUjoEEE3XcKg9yjuON5HhkIzo2CxG72bxEblchqar-GuYR8hRjpWCFWzhxcoBnYI4gRVOiGVhEBc_gqb3Dki-E8MxV3Rcbeh58matPWV_RsCpJ&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 148,
+      "livePrice": 143,
+      "mrp": 143,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 148, Live price: 143"
+    },
+    {
+      "title": "Kumud Hula Hoop Exercise Ring with 30 inch Diameter Boys Girls Hula Hoop Hula Hoop",
+      "url": "https://www.flipkart.com/kumud-hula-hoop-exercise-ring-30-inch-diameter-boys-girls/p/itm37d2b2a1ca6d1?pid=HHPHF6MKAJ6ZZHTH&lid=LSTHHPHF6MKAJ6ZZHTHDFI1BW&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&spotlightTagId=default_TrendingId_qoc%2Facb%2Fbtm&srno=s_1_7&otracker=search&iid=62e350ec-4a3c-4a32-8205-11738162f8d7.HHPHF6MKAJ6ZZHTH.SEARCH&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 154,
+      "livePrice": 157,
+      "mrp": 157,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 154, Live price: 157"
+    },
+    {
+      "title": "BHVMEY Ergonomic Body Therapy Stick for Deep Tissue Massage and Pain Relief Exercise Hula Hoop",
+      "url": "https://www.flipkart.com/bhvmey-ergonomic-body-therapy-stick-deep-tissue-massage-pain-relief-exercise-hula-hoop/p/itm812926dc628ef?pid=HHPHNJBV6XGY2VQU&lid=LSTHHPHNJBV6XGY2VQUG4NRCL&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_8&otracker=search&iid=62e350ec-4a3c-4a32-8205-11738162f8d7.HHPHNJBV6XGY2VQU.SEARCH&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 180,
+      "livePrice": 180,
+      "mrp": 180,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Kumud Hula Hoop",
+      "url": "https://www.flipkart.com/kumud-hula-hoop/p/itm739b3ec786265?pid=HHPGY43FVZ44VFTG&lid=LSTHHPGY43FVZ44VFTGGKANLM&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&spotlightTagId=default_TrendingId_qoc%2Facb%2Fbtm&srno=s_1_9&otracker=search&iid=62e350ec-4a3c-4a32-8205-11738162f8d7.HHPGY43FVZ44VFTG.SEARCH&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 155,
+      "livePrice": 151,
+      "mrp": 151,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 155, Live price: 151"
+    },
+    {
+      "title": "BNM TOYS Hula Hoop Ring Exercise for Aerobics,Gymnastic & Weight Loss Hula Hoop Hula Hoop",
+      "url": "https://www.flipkart.com/bnm-toys-hula-hoop-ring-exercise-aerobics-gymnastic-weight-loss/p/itm81fece7bf164c?pid=HHPGXY94HC2FYZJR&lid=LSTHHPGXY94HC2FYZJRHGTUN4&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_10&otracker=search&iid=62e350ec-4a3c-4a32-8205-11738162f8d7.HHPGXY94HC2FYZJR.SEARCH&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 115,
+      "livePrice": 117,
+      "mrp": 117,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 115, Live price: 117"
+    },
+    {
+      "title": "PK15 Hula Hoop",
+      "url": "https://www.flipkart.com/pk15-hula-hoop/p/itmc57ad01dc8ce0?pid=HHPH53X2Q64RGM96&lid=LSTHHPH53X2Q64RGM96GKL9QB&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_11&otracker=search&iid=en_7rX0IlWg7GqJSbFwf3RUjoEEE3XcKg9yjuON5HhkIzovKCxcV74299QMMeB9OaTBx5ZQM84TKcZCbv_HaG7HcfhwzEFi4lME5pafdg4EOEdV3Rcbeh58matPWV_RsCpJ&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 144,
+      "livePrice": 140,
+      "mrp": 140,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 144, Live price: 140"
+    },
+    {
+      "title": "Aditi Toys Hula Hoop Ring – Adjustable Fitness Hoop for Fun Exercise & Play Activity Hula Hoop",
+      "url": "https://www.flipkart.com/aditi-toys-hula-hoop-ring-adjustable-fitness-fun-exercise-play-activity/p/itm785fa1faa53d1?pid=HHPHBA2XY6QQKVZQ&lid=LSTHHPHBA2XY6QQKVZQDFO3JN&marketplace=FLIPKART&q=hula+hoop&store=qoc%2Facb%2Fbtm&srno=s_1_12&otracker=search&iid=en_7rX0IlWg7GqJSbFwf3RUjoEEE3XcKg9yjuON5HhkIzrkBRbyJt6ReMngKHBLzxbBdQr2ccxhwV-6ZagrCTnmpnpSDzpDtOYxyxQBVhgQbr4sunXpo6WabFL4BwfXuykf&ssid=59tyy8ontc0000001781697364241&qH=842bd49d591db96c&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 240,
+      "livePrice": 242,
+      "mrp": 242,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 240, Live price: 242"
+    },
+    {
+      "title": "KWINE CASE Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/kwine-case-back-cover-apple-iphone-15/p/itm5d592a7066a3a?pid=ACCHJZZ7VE9BZKVY&lid=LSTACCHJZZ7VE9BZKVYIBMED3&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&srno=s_1_1&otracker=search&iid=en_qM0reQBaXyUIAu3s1Q2CUUfNz1peLiK6QHVyL2SdST3EhFVqiluGMHpeId_EutgkKoYPLTlzI2yVLOIkB8LOo2vDyNvis3JR0p69FBE5J4UfVZZR8ckEPAwLmgqhUB8u&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 200,
+      "livePrice": 200,
+      "mrp": 200,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "DailyObjects Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/dailyobjects-back-cover-apple-iphone-15/p/itm2cfceb46e88ab?pid=ACCHKTF9VDHXVGRK&lid=LSTACCHKTF9VDHXVGRKJLJNHO&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&srno=s_1_2&otracker=search&iid=en_qM0reQBaXyUIAu3s1Q2CUUfNz1peLiK6QHVyL2SdST2MDKR1BlV4LtTDd87za-wfydMw7Cy0ya7v75XrWlvEal8cab0sg29kg2CNvycWMLsfVZZR8ckEPAwLmgqhUB8u&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 695,
+      "livePrice": 695,
+      "mrp": 695,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Flipkart SmartBuy Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/flipkart-smartbuy-back-cover-apple-iphone-15/p/itmb6bef498b56d5?pid=ACCH9QZZZJE8BBCQ&lid=LSTACCH9QZZZJE8BBCQTSYIWO&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&spotlightTagId=default_BestsellerId_tyy%2F4mr%2Fq2u&srno=s_1_3&otracker=search&iid=11644600-1b88-41dc-8931-a50259762e42.ACCH9QZZZJE8BBCQ.SEARCH&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 160,
+      "livePrice": 160,
+      "mrp": 160,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Oldcrew Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/oldcrew-back-cover-apple-iphone-15/p/itm609b2569e551e?pid=ACCHGQ44JFVV7JVQ&lid=LSTACCHGQ44JFVV7JVQRINHXD&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&spotlightTagId=default_BestsellerId_tyy%2F4mr%2Fq2u&srno=s_1_4&otracker=search&iid=11644600-1b88-41dc-8931-a50259762e42.ACCHGQ44JFVV7JVQ.SEARCH&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 176,
+      "livePrice": 176,
+      "mrp": 176,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Flipkart SmartBuy Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/flipkart-smartbuy-back-cover-apple-iphone-15/p/itm528891cf73771?pid=ACCHJZZP2ZNC2WBJ&lid=LSTACCHJZZP2ZNC2WBJVPK9PT&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&srno=s_1_5&otracker=search&iid=en_qM0reQBaXyUIAu3s1Q2CUUfNz1peLiK6QHVyL2SdST2IJF1bNs6cCmpu24sCM1JN3xVEKzZrCmODk-pQ6YT08V_WXltCLz7hst6wAL0mBV3e3phmyvNWrywM7iaoNV3D&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 200,
+      "livePrice": 200,
+      "mrp": 200,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "DailyObjects Back Cover for APPLE IPhone 15",
+      "url": "https://www.flipkart.com/dailyobjects-back-cover-apple-iphone-15/p/itm17e36f1eb2302?pid=ACCGTUF7XHZW8PDN&lid=LSTACCGTUF7XHZW8PDNILMDF7&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&srno=s_1_6&otracker=search&iid=en_qM0reQBaXyUIAu3s1Q2CUUfNz1peLiK6QHVyL2SdST0Wh_AUMokgtDIZSDigxLnqpIDHVF3KQ3v8JBDFzkUbquBXIn61GC4NY6B1NaZWy83e3phmyvNWrywM7iaoNV3D&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 695,
+      "livePrice": 695,
+      "mrp": 695,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Gorilion Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/gorilion-back-cover-apple-iphone-15/p/itmb7aa63bc3fec0?pid=ACCHMTQDZMGDZ3GA&lid=LSTACCHMTQDZMGDZ3GA6VLJUA&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&srno=s_1_7&otracker=search&iid=11644600-1b88-41dc-8931-a50259762e42.ACCHMTQDZMGDZ3GA.SEARCH&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 167,
+      "livePrice": 173,
+      "mrp": 173,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 167, Live price: 173"
+    },
+    {
+      "title": "Flipkart SmartBuy Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/flipkart-smartbuy-back-cover-apple-iphone-15/p/itmac1f0f873ca04?pid=ACCH4PKH4SZN5HX3&lid=LSTACCH4PKH4SZN5HX3D092EZ&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&spotlightTagId=default_BestsellerId_tyy%2F4mr%2Fq2u&srno=s_1_8&otracker=search&iid=11644600-1b88-41dc-8931-a50259762e42.ACCH4PKH4SZN5HX3.SEARCH&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 176,
+      "livePrice": 175,
+      "mrp": 175,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Mozo Back Cover for Apple iPhone 15",
+      "url": "https://www.flipkart.com/mozo-back-cover-apple-iphone-15/p/itm0a64703ab61b5?pid=ACCHMTQBNGHR2V6A&lid=LSTACCHMTQBNGHR2V6ANZSSGM&marketplace=FLIPKART&q=iphone+15+cover&store=tyy%2F4mr%2Fq2u&srno=s_1_9&otracker=search&iid=11644600-1b88-41dc-8931-a50259762e42.ACCHMTQBNGHR2V6A.SEARCH&ssid=1ekanz2xuo0000001781697497312&qH=e54d698378531763&ov_redirect=true&ov_redirect=true",
+      "scrapedPrice": 167,
+      "livePrice": 173,
+      "mrp": 173,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 167, Live price: 173"
+    }
+  ],
+  "myntra": [
+    {
+      "title": "FoxTale Hula Hoop Brightening Body Lotion to Brighten & Hydrate - 200 ml",
+      "url": "https://www.myntra.com/body-cream-and-lotion/foxtale/foxtale-hula-hoop-brightening-body-lotion-to-brighten--hydrate---200-ml/30780005/buy",
+      "scrapedPrice": 368,
+      "livePrice": 368,
+      "mrp": 449,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "FoxTale Hula Hoop HydraLock Body Wash for 24-Hrs Long Hydration & Moisturization - 250ml",
+      "url": "https://www.myntra.com/body-wash-and-shower-gel/foxtale/foxtale-hula-hoop-hydralock-body-wash-for-24-hrs-long-hydration--moisturization---250ml/30780002/buy",
+      "scrapedPrice": 263,
+      "livePrice": 263,
+      "mrp": 329,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "FoxTale Set Of 2 Skin Radiance Mask - 75 g & Hula Hoop Exfoliating Body Scrub - 200 g",
+      "url": "https://www.myntra.com/skin-care-combo/foxtale/foxtale-set-of-2-skin-radiance-mask---75-g--hula-hoop-exfoliating-body-scrub---200-g/39529832/buy",
+      "scrapedPrice": 895,
+      "livePrice": 895,
+      "mrp": 1194,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "FoxTale Hula Hoop Brightening Body Wash to Exfoliate & Reduce Tan",
+      "url": "https://www.myntra.com/body-wash-and-shower-gel/foxtale/foxtale-hula-hoop-brightening-body-wash-to-exfoliate--reduce-tan/30780007/buy",
+      "scrapedPrice": 327,
+      "livePrice": 327,
+      "mrp": 399,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "CULT Posture Corrector",
+      "url": "https://www.myntra.com/workout-accessories/cult/cult-posture-corrector/33420456/buy",
+      "scrapedPrice": 410,
+      "livePrice": 410,
+      "mrp": 2199,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "BOLDFIT Gym Gloves With Wrist Support",
+      "url": "https://www.myntra.com/workout-accessories/boldfit/boldfit-gym-gloves-with-wrist-support/21077932/buy",
+      "scrapedPrice": 369,
+      "livePrice": 379,
+      "mrp": 799,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 369, Live price: 379"
+    },
+    {
+      "title": "Mr. Carve  Stainless Steel Hooks And Holders",
+      "url": "https://www.myntra.com/workout-accessories/mr.+carve/mr-carve--stainless-steel-hooks-and-holders/42173759/buy",
+      "scrapedPrice": 318,
+      "livePrice": 318,
+      "mrp": 319,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "CULT Grey Yoga Wheel for Stretching and Balance",
+      "url": "https://www.myntra.com/workout-accessories/cult/cult-grey-yoga-wheel-for-stretching-and-balance-/35333689/buy",
+      "scrapedPrice": 1320,
+      "livePrice": 1320,
+      "mrp": 2099,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "BOLDFIT Adjustable Forearm Hand Gripper",
+      "url": "https://www.myntra.com/workout-accessories/boldfit/boldfit-adjustable-forearm-hand-gripper/22987622/buy",
+      "scrapedPrice": 229,
+      "livePrice": 249,
+      "mrp": 699,
+      "status": "MISMATCH",
+      "reason": "Scraped price: 229, Live price: 249"
+    },
+    {
+      "title": "FoxTale Hula Hoop Exfoliation Body Scrub - 200g",
+      "url": "https://www.myntra.com/body-scrub-and-exfoliator/foxtale/foxtale-hula-hoop-exfoliation-body-scrub---200g/38228878/buy",
+      "scrapedPrice": 545,
+      "livePrice": 545,
+      "mrp": 649,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "FoxTale Hula Hoop 10% De-Tan BodyScrub 5% Glycolic Acid Foaming Body Scrub - 75 g",
+      "url": "https://www.myntra.com/body-scrub-and-exfoliator/foxtale/foxtale-hula-hoop-10-de-tan-bodyscrub-5-glycolic-acid-foaming-body-scrub---75-g/42055039/buy",
+      "scrapedPrice": 314,
+      "livePrice": 314,
+      "mrp": 349,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "BOLDFIT Foam Roller Pro White Core",
+      "url": "https://www.myntra.com/workout-accessories/boldfit/boldfit-foam-roller-pro-white-core/32581681/buy",
+      "scrapedPrice": 599,
+      "livePrice": 599,
+      "mrp": 1299,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Floral Printed iPhone 15 Pro Max Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-floral-printed-iphone-15-pro-max-back-case-mobile-accessories/41788964/buy",
+      "scrapedPrice": 595,
+      "livePrice": 595,
+      "mrp": 2999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Solid Printed iPhone 15 Pro Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-solid-printed-iphone-15-pro-back-case-mobile-accessories/41789944/buy",
+      "scrapedPrice": 495,
+      "livePrice": 495,
+      "mrp": 1999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Solid Printed iPhone 15 Pro Max Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-solid-printed-iphone-15-pro-max-back-case-mobile-accessories/41791636/buy",
+      "scrapedPrice": 499,
+      "livePrice": 499,
+      "mrp": 999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Conversational Printed iPhone 15 Plus Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-conversational-printed-iphone-15-plus-back-case-mobile-accessories/41788431/buy",
+      "scrapedPrice": 895,
+      "livePrice": 895,
+      "mrp": 3999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Conversational Printed iPhone 15 Plus Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-conversational-printed-iphone-15-plus-back-case-mobile-accessories/41787871/buy",
+      "scrapedPrice": 899,
+      "livePrice": 899,
+      "mrp": 3999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Cartoon Characters Printed iPhone 15 Plus Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-cartoon-characters-printed-iphone-15-plus-back-case-mobile-accessories/41788314/buy",
+      "scrapedPrice": 795,
+      "livePrice": 795,
+      "mrp": 2999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Superhero Printed iPhone 15 Pro Max Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-superhero-printed-iphone-15-pro-max-back-case-mobile-accessories/41791561/buy",
+      "scrapedPrice": 795,
+      "livePrice": 795,
+      "mrp": 2999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "COVERLY Abstract Printed iPhone 15 Pro Max Back Case Mobile Accessories",
+      "url": "https://www.myntra.com/mobile-accessories/coverly/coverly-abstract-printed-iphone-15-pro-max-back-case-mobile-accessories/41790142/buy",
+      "scrapedPrice": 799,
+      "livePrice": 799,
+      "mrp": 2999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    }
+  ],
+  "ajio": [
+    {
+      "title": "FOXTALE Hula Hoop Exfoliating Body Wash by Exfoliates & Smoothens",
+      "url": "https://www.ajio.com/foxtale-hula-hoop-exfoliating-body-wash-by-exfoliates--smoothens/p/4945169260_multi?",
+      "scrapedPrice": 339,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "FOXTALE Hula Hoop De-Tan Body Wash",
+      "url": "https://www.ajio.com/foxtale-hula-hoop-de-tan-body-wash/p/4947668870_multi?",
+      "scrapedPrice": 339,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "FOXTALE Hula Hoop By Moroccan Silk Exfoliating Body Scrub",
+      "url": "https://www.ajio.com/foxtale-hula-hoop-by-moroccan-silk-exfoliating-body-scrub/p/4947397610_multi?",
+      "scrapedPrice": 545,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "FOXTALE Flower Power Brightening Body Wash",
+      "url": "https://www.ajio.com/foxtale-flower-power-brightening-body-wash/p/4944741440_red?",
+      "scrapedPrice": 327,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "FOXTALE Flower Power Brightening Body Lotion",
+      "url": "https://www.ajio.com/foxtale-flower-power-brightening-body-lotion/p/4944741430_red?",
+      "scrapedPrice": 368,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "FOXTALE Hula Hoop Swiss Milk Ultra Nourishing Moisture Body Lotion",
+      "url": "https://www.ajio.com/foxtale-hula-hoop-swiss-milk-ultra-nourishing-moisture-body-lotion/p/4944741450_skyblue?",
+      "scrapedPrice": 279,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "FOXTALE Hula Hoop Moroccan Silk Exfoliating Body Scrub",
+      "url": "https://www.ajio.com/foxtale-hula-hoop-moroccan-silk-exfoliating-body-scrub/p/4947676620_multi?",
+      "scrapedPrice": 314,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "FOXTALE Aqua Plunge Hydrating Body Wash",
+      "url": "https://www.ajio.com/foxtale-aqua-plunge-hydrating-body-wash/p/4944741460_skyblue?",
+      "scrapedPrice": 263,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "PLAYNXT Happy Hoops Fun & Fitness",
+      "url": "https://www.ajio.com/playnxt-happy-hoops-fun--fitness/p/4911857610_multi?",
+      "scrapedPrice": 807,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "DZINETRENDZ Women Gold-Plated Drop Earrings",
+      "url": "https://www.ajio.com/dzinetrendz-women-gold-plated-drop-earrings/p/701116845_gold?",
+      "scrapedPrice": 349,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Liora 925 Silver Jewellery Women 925 Sterling Silver Rose Glow Hoops",
+      "url": "https://www.ajio.com/liora-925-silver-jewellery-women-925-sterling-silver-rose-glow-hoops/p/700718254_rosegold?",
+      "scrapedPrice": 2499,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "TEAKWOOD LEATHERS Leather Mobile Case",
+      "url": "https://www.ajio.com/teakwood-leathers-leather-mobile-case/p/464507192_navy?",
+      "scrapedPrice": 560,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Apple Mag Safe Iphone Fine Woven Wallet-A3323",
+      "url": "https://www.ajio.com/apple-mag-safe-iphone-fine-woven-wallet-a3323/p/4944230930_multi?",
+      "scrapedPrice": 2822,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Auriglo Anti-Slip Grip iPhone 17 Pro Max Phone Case",
+      "url": "https://www.ajio.com/auriglo-anti-slip-grip-iphone-17-pro-max-phone-case/p/703168329_black?",
+      "scrapedPrice": 5999,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "ZEBRONICS In Ear Wireless Earbuds-ZEB-Pods K2",
+      "url": "https://www.ajio.com/zebronics-in-ear-wireless-earbuds-zeb-pods-k2/p/4947497750_multi?",
+      "scrapedPrice": 774,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Bellend oppo a15-a15s Silicon Mobile Cover",
+      "url": "https://www.ajio.com/bellend-oppo-a15-a15s-silicon-mobile-cover/p/466909317_multi?",
+      "scrapedPrice": 584,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Bellend oppo a15/a15s Designer Soft Silicon Back Cover Back cover",
+      "url": "https://www.ajio.com/bellend-oppo-a15-a15s-designer-soft-silicon-back-cover-back-cover/p/466909383_multi?",
+      "scrapedPrice": 584,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Sassora Women Brand Accent Mobile Case",
+      "url": "https://www.ajio.com/sassora-women-brand-accent-mobile-case/p/700271841_blue?",
+      "scrapedPrice": 410,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Bellend oppo a15/a15s Designer Soft Silicon Back Cover Back cover",
+      "url": "https://www.ajio.com/bellend-oppo-a15-a15s-designer-soft-silicon-back-cover-back-cover/p/466909365_multi?",
+      "scrapedPrice": 584,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    },
+    {
+      "title": "Bellend Printed Oppo A15s/ Oppo A15 Back Cover with Camera Protection",
+      "url": "https://www.ajio.com/bellend-printed-oppo-a15s-oppo-a15-back-cover-with-camera-protection/p/466909057_multi?",
+      "scrapedPrice": 584,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "BLOCKED: Access Denied"
+    }
+  ],
+  "reliance": [
+    {
+      "title": "Apple iPhone 15 Silicone Mobile Case Soft Mint",
+      "url": "https://www.reliancedigital.in/p/iphone-15-silicone-mobile-case-soft-mint-ltmi93-7537083",
+      "scrapedPrice": 4900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "iPhone 15 Finewoven Wallet with MagSafe Black",
+      "url": "https://www.reliancedigital.in/p/iphone-15-finewoven-wallet-with-magsafe-black-lmoxz9-7533859",
+      "scrapedPrice": 5900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Hyphen AIRE MagSafe Clear Case for iPhone 15",
+      "url": "https://www.reliancedigital.in/p/hyphen-aire-magsafe-clear-case-for-iphone-15-m19o2r-8605488",
+      "scrapedPrice": 999,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Hyphen Clear MagSafe Case for iPhone 15 Plus",
+      "url": "https://www.reliancedigital.in/p/hyphen-clear-magsafe-case-for-iphone-15-plus-m19o2t-8605499",
+      "scrapedPrice": 999,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Apple iPhone 15 Plus Case, Clear",
+      "url": "https://www.reliancedigital.in/p/apple-iphone-15-plus-case-clear-lmupgx-7534029",
+      "scrapedPrice": 4900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Apple iPhone 15 Clear Case",
+      "url": "https://www.reliancedigital.in/p/apple-iphone-15-clear-case-lmuj0s-7533951",
+      "scrapedPrice": 4900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Apple iPhone 15 Silicone Mobile Case Light Blue",
+      "url": "https://www.reliancedigital.in/p/iphone-15-silicone-mobile-case-light-blue-ltmi93-7537084",
+      "scrapedPrice": 4900,
+      "livePrice": 4900,
+      "mrp": 4900,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Apple iPhone 15 Pro Silicone Case with MagSafe, Guava",
+      "url": "https://www.reliancedigital.in/p/apple-iphone-15-pro-silicone-case-with-magsafe-guava-lmoxy7-7533844",
+      "scrapedPrice": 4900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Apple iPhone 15 Pro Silicone Case with MagSafe, Cypress",
+      "url": "https://www.reliancedigital.in/p/apple-iphone-15-pro-silicone-case-with-magsafe-cypress-lmoxy7-7533845",
+      "scrapedPrice": 4900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "UNKNOWN",
+      "reason": "Could not parse price from PDP"
+    },
+    {
+      "title": "Apple iPhone 15 Pro Silicone Case with MagSafe, Clay",
+      "url": "https://www.reliancedigital.in/p/apple-iphone-15-pro-silicone-case-with-magsafe-clay-lmoxxy-7533842",
+      "scrapedPrice": 4900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "UNKNOWN",
+      "reason": "Could not parse price from PDP"
+    },
+    {
+      "title": "Apple iPhone 15 Pro FineWoven Case with MagSafe, Black",
+      "url": "https://www.reliancedigital.in/p/apple-iphone-15-pro-finewoven-case-with-magsafe-black-lmoxyr-7533852",
+      "scrapedPrice": 5900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "UNKNOWN",
+      "reason": "Could not parse price from PDP"
+    },
+    {
+      "title": "Apple iPhone 15 256 GB Yellow",
+      "url": "https://www.reliancedigital.in/product/apple-iphone-15-256gb-yellow-lmiqm6-7533792",
+      "scrapedPrice": 69900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "UNKNOWN",
+      "reason": "Could not parse price from PDP"
+    },
+    {
+      "title": "Apple iPhone 15 Plus Silicone Case, Black",
+      "url": "https://www.reliancedigital.in/p/apple-iphone-15-plus-silicone-case-black-lmupgr-7534021",
+      "scrapedPrice": 4900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Apple iPhone 15 512 GB Black",
+      "url": "https://www.reliancedigital.in/product/apple-iphone-15-512gb-black-lmiqm7-7533793",
+      "scrapedPrice": 89900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "UNKNOWN",
+      "reason": "Could not parse price from PDP"
+    },
+    {
+      "title": "Apple iPhone 15 512 GB Green",
+      "url": "https://www.reliancedigital.in/product/apple-iphone-15-512gb-green-lmiqmb-7533797",
+      "scrapedPrice": 89900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "ERROR",
+      "reason": "Navigation timeout of 20000 ms exceeded"
+    },
+    {
+      "title": "Apple iPhone 15 256GB Pink",
+      "url": "https://www.reliancedigital.in/product/apple-iphone-15-256gb-pink-lmiqm8-7533790",
+      "scrapedPrice": 69900,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "UNKNOWN",
+      "reason": "Could not parse price from PDP"
+    },
+    {
+      "title": "Apple iPhone 15 Silicone Mobile Case Soft Mint",
+      "url": "https://www.reliancedigital.in/product/iphone-15-silicone-mobile-case-soft-mint-ltmi93-7537083",
+      "scrapedPrice": 4900,
+      "livePrice": 4900,
+      "mrp": 4900,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "iPhone 15 Finewoven Wallet with MagSafe Black",
+      "url": "https://www.reliancedigital.in/product/iphone-15-finewoven-wallet-with-magsafe-black-lmoxz9-7533859",
+      "scrapedPrice": 5900,
+      "livePrice": 5900,
+      "mrp": 5900,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Apple 20 W Adapter, Type-C, Fast & Efficient Charging, Compatible with iPhone 17, iPhone 16, iPhone 15, iPhone 14, iPhone 13, iPhone 12, iPhone 11, iPhone SE (2nd generation) & USB-C enabled devices, White",
+      "url": "https://www.reliancedigital.in/product/apple-20-w-usb-c-adaptor-lxorda-7713668?internal_source=search_results",
+      "scrapedPrice": 1799,
+      "livePrice": 1799,
+      "mrp": 1799,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    },
+    {
+      "title": "Hyphen Clear MagSafe Case for iPhone 15 Plus",
+      "url": "https://www.reliancedigital.in/product/hyphen-clear-magsafe-case-for-iphone-15-plus-m19o2t-8605499",
+      "scrapedPrice": 999,
+      "livePrice": 999,
+      "mrp": 999,
+      "status": "MATCH",
+      "reason": "Live price matches scraped price"
+    }
+  ],
+  "amazon": [
+    {
+      "title": "Office Wireless Mouse",
+      "url": "https://www.amazon.in/mouse2",
+      "scrapedPrice": 599,
+      "livePrice": "N/A",
+      "mrp": "N/A",
+      "status": "UNKNOWN",
+      "reason": "Could not parse price from PDP"
+    }
+  ]
+}
