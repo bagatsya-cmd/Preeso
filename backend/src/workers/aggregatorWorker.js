@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
+const { SCRAPING_ENABLED } = require('../config/features');
+
 const ScrapeJob = require('../models/scrapeJob');
 const ScrapedProduct = require('../models/scrapedProduct');
 const ProductResult = require('../models/productResult');
@@ -118,8 +120,12 @@ async function runAggregation(job) {
 }
 
 async function startWorker() {
-  console.log('[AggregatorWorker] Worker loop started...');
-  
+  if (!SCRAPING_ENABLED) {
+    console.log('[AggregatorWorker] Scraping disabled. Worker will not start.');
+    return;
+  }
+
+  console.log('[AggregatorWorker] Worker loop started...');  
   try {
     // Recovery logic on startup: reset jobs stuck in 'aggregating' for >2 minutes back to 'scraped'
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
@@ -206,6 +212,11 @@ async function startWorker() {
 
 // Connect to MongoDB and run
 if (require.main === module) {
+  if (!SCRAPING_ENABLED) {
+    console.log('[AggregatorWorker] Scraping disabled. Exiting.');
+    process.exit(0);
+  }
+
   const mongoUri = process.env.MONGO_URI;
   if (!mongoUri) {
     console.error('MONGO_URI not specified in environment.');

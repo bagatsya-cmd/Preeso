@@ -1,10 +1,12 @@
 const ProductResult = require('../models/productResult');
 const ScrapeJob = require('../models/scrapeJob');
+const ScrapedProduct = require('../models/scrapedProduct');
 const pubSub = require('../utils/pubSub');
 const { normalizeQuery } = require('../utils/queryNormalizer');
 const { rankLiveResults } = require('../utils/liveSearchRanker');
 const logger = require('../utils/logger');
 const cancellationManager = require('../utils/cancellationManager');
+const { SCRAPING_ENABLED } = require('../config/features');
 
 const activeClientJobs = new Map(); // ip -> jobId
 
@@ -142,6 +144,82 @@ const SSE_MAX_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes max SSE open time
 exports.streamSearch = async (req, res) => {
   console.log('[SSE RECEIVED]', req.query.q, req.ip, req.headers.host);
 
+  const { q: query } = req.query;
+  if (!query?.trim()) {
+    return res.status(400).json({ error: 'Query is required' });
+  }
+
+  const normalizedQuery = normalizeQuery(query);
+  const queryKey = normalizedQuery.replace(/\s+/g, '_');
+  const searchStart = Date.now();
+
+  console.log("normalizedQuery", normalizedQuery);
+  console.log("queryKey", queryKey);
+  console.log(`[SSE] Search request: "${normalizedQuery}" | queryKey: "${queryKey}"`);
+
+  // ── Read-only fast path (production) ──────────────────────────────────────
+  if (!SCRAPING_ENABLED) {
+    console.log(`[SSE] Scraping disabled — read-only mode for queryKey: "${queryKey}"`);
+
+    // SSE headers
+    res.writeHead(200, {
+      'Content-Type':            'text/event-stream',
+      'Cache-Control':           'no-cache, no-store',
+      'Connection':              'keep-alive',
+      'X-Accel-Buffering':       'no',
+      'Access-Control-Allow-Origin': process.env.FRONTEND_URL || '*',
+    });
+
+    const alive = { ok: true };
+    const send = makeSend(res, alive);
+
+    try {
+      // 1. Exact query cache lookup
+      const cachedResult = await ProductResult.findOne({ queryKey }).lean();
+      const sanitizedCached = cachedResult && cachedResult.products ? sanitizeProducts(cachedResult.products) : [];
+
+      if (sanitizedCached.length > 0) {
+        console.log(`[SSE] Read-only cache HIT for "${queryKey}" — ${sanitizedCached.length} products`);
+        send({ type: 'partial-results', final: true, products: sanitizedCached });
+        const totalMs = Date.now() - searchStart;
+        send({ type: 'complete', final: true, totalUnique: sanitizedCached.length, totalMs });
+        send({ type: 'completed', totalUnique: sanitizedCached.length, totalMs });
+        res.end();
+        return;
+      }
+
+      // 2. Catalog keyword fallback
+      const catalogProducts = await searchCatalog(normalizedQuery);
+      const sanitizedCatalog = sanitizeProducts(catalogProducts);
+
+      if (sanitizedCatalog.length > 0) {
+        console.log(`[SSE] Read-only catalog HIT for "${normalizedQuery}" — ${sanitizedCatalog.length} products`);
+        send({ type: 'partial-results', final: true, cached: true, source: 'catalog', products: sanitizedCatalog });
+        const totalMs = Date.now() - searchStart;
+        send({ type: 'complete', final: true, totalUnique: sanitizedCatalog.length, totalMs });
+        send({ type: 'completed', totalUnique: sanitizedCatalog.length, totalMs });
+        res.end();
+        return;
+      }
+
+      // 3. No results at all
+      console.log(`[SSE] Read-only — no results for "${queryKey}"`);
+      const totalMs = Date.now() - searchStart;
+      send({ type: 'partial-results', final: true, products: [] });
+      send({ type: 'complete', final: true, totalUnique: 0, totalMs });
+      send({ type: 'completed', totalUnique: 0, totalMs });
+      res.end();
+      return;
+    } catch (err) {
+      console.error('[SSE] Read-only streamSearch error:', err);
+      if (alive.ok) send('error', { message: 'Search stream failed.' });
+      res.end();
+      return;
+    }
+  }
+
+  // ── Scraping-enabled path (local development) ─────────────────────────────
+
   // 1. Cancel previous client search immediately
   const clientIp = req.ip || 'global';
   if (process.env.NODE_ENV === 'production') {
@@ -156,21 +234,8 @@ exports.streamSearch = async (req, res) => {
   }
 
   activeSearches++;
-  const { q: query } = req.query;
-  if (!query?.trim()) {
-    activeSearches--;
-    return res.status(400).json({ error: 'Query is required' });
-  }
-
-  const normalizedQuery = normalizeQuery(query);
-  const queryKey = normalizedQuery.replace(/\s+/g, '_');
-  const searchStart = Date.now();
   const alive = { ok: true };
   const send = makeSend(res, alive);
-
-  console.log("normalizedQuery", normalizedQuery);
-  console.log("queryKey", queryKey);
-  console.log(`[SSE] Search request: "${normalizedQuery}" | queryKey: "${queryKey}"`);
 
   // SSE headers
   res.writeHead(200, {
@@ -180,6 +245,18 @@ exports.streamSearch = async (req, res) => {
     'X-Accel-Buffering':       'no',
     'Access-Control-Allow-Origin': process.env.FRONTEND_URL || '*',
   });
+
+  // Delete stale data for this queryKey before scraping fresh
+  try {
+    const [delScraped, delResults, delJobs] = await Promise.all([
+      ScrapedProduct.deleteMany({ queryKey }),
+      ProductResult.deleteMany({ queryKey }),
+      ScrapeJob.deleteMany({ queryKey }),
+    ]);
+    console.log(`[SSE] Purged stale data for queryKey="${queryKey}": scraped_products=${delScraped.deletedCount}, product_results=${delResults.deletedCount}, scrape_jobs=${delJobs.deletedCount}`);
+  } catch (err) {
+    console.error(`[SSE] Failed to purge stale data for queryKey="${queryKey}":`, err.message);
+  }
 
   // Keep-alive heartbeat (every 12 seconds)
   const heartbeat = setInterval(() => {

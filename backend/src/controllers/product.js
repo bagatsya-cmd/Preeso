@@ -3,7 +3,9 @@ const Product = require('../models/product');
 const User = require('../models/User');
 const ProductResult = require('../models/productResult');
 const ScrapeJob = require('../models/scrapeJob');
+const ScrapedProduct = require('../models/scrapedProduct');
 const { normalizeQuery } = require('../utils/queryNormalizer');
+const { SCRAPING_ENABLED } = require('../config/features');
 
 function sanitizeProducts(products) {
   if (!products) return [];
@@ -52,41 +54,37 @@ exports.searchProducts = async (req, res) => {
     const normalizedQuery = normalizeQuery(query);
     const queryKey = normalizedQuery.replace(/\s+/g, '_');
 
-    // 1. Check DB cache
-    const cachedResult = await ProductResult.findOne({ queryKey }).lean();
-    console.log(`[DB RESULT] queryKey="${queryKey}" productResultsCount=${cachedResult?.products?.length || 0}`);
-    
-    const STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000;
-    let isStale = true;
-    if (cachedResult) {
-      console.log(`[CACHE RESULT] queryKey="${queryKey}" resultCount=${cachedResult.products?.length || 0} createdAt="${new Date(cachedResult.updatedAt).toISOString()}"`);
-      console.log("cacheHitKey", queryKey);
-      const age = Date.now() - new Date(cachedResult.updatedAt).getTime();
-      isStale = age > STALE_THRESHOLD_MS;
+    // ── Read-only mode (production) ─────────────────────────────────────────
+    if (!SCRAPING_ENABLED) {
+      const cachedResult = await ProductResult.findOne({ queryKey }).lean();
+      console.log(`[API Search] Read-only mode. queryKey="${queryKey}" resultCount=${cachedResult?.products?.length || 0}`);
+      return res.json(cachedResult ? sanitizeProducts(cachedResult.products) : []);
     }
 
-    // 2. If missing or stale, trigger background scraper job
-    if (!cachedResult || isStale) {
-      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-      const activeJob = await ScrapeJob.findOne({
-        queryKey,
-        status: { $in: ['pending', 'scraping', 'scraped', 'aggregating'] },
-        updatedAt: { $gte: fifteenMinutesAgo }
-      });
-      console.log(`[JOB CHECK] queryKey="${queryKey}" jobFound=${activeJob ? true : false} jobStatus="${activeJob ? activeJob.status : 'none'}"`);
+    // ── Scraping-enabled mode (local development) ───────────────────────────
 
-      if (!activeJob) {
-        console.log(`[API Search] Enqueuing background job for queryKey: "${queryKey}"`);
-        await ScrapeJob.create({
-          query: normalizedQuery,
-          queryKey,
-          status: 'pending'
-        });
-      }
+    // Purge stale data for this queryKey before scraping fresh
+    try {
+      const [delScraped, delResults, delJobs] = await Promise.all([
+        ScrapedProduct.deleteMany({ queryKey }),
+        ProductResult.deleteMany({ queryKey }),
+        ScrapeJob.deleteMany({ queryKey }),
+      ]);
+      console.log(`[API Search] Purged stale data for queryKey="${queryKey}": scraped_products=${delScraped.deletedCount}, product_results=${delResults.deletedCount}, scrape_jobs=${delJobs.deletedCount}`);
+    } catch (err) {
+      console.error(`[API Search] Failed to purge stale data for queryKey="${queryKey}":`, err.message);
     }
 
-    // 3. Immediately return cached products (or empty array if none)
-    return res.json(cachedResult ? sanitizeProducts(cachedResult.products) : []);
+    // Create a new background scrape job
+    console.log(`[API Search] Enqueuing background job for queryKey: "${queryKey}"`);
+    await ScrapeJob.create({
+      query: normalizedQuery,
+      queryKey,
+      status: 'pending'
+    });
+
+    // Return empty array — data was just purged, scraping will populate it
+    return res.json([]);
   } catch (err) {
     console.error('[API Search] Error:', err);
     res.status(500).json({ message: 'Server error during search pipeline' });

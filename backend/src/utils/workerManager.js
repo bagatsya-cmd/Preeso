@@ -1,10 +1,16 @@
 const { fork } = require('child_process');
 const path = require('path');
+const { SCRAPING_ENABLED } = require('../config/features');
 
 let scraperProcess = null;
 let aggregatorProcess = null;
 
 function startWorkers() {
+  if (!SCRAPING_ENABLED) {
+    console.log('[WorkerManager] Scraping disabled. Workers will not start.');
+    return;
+  }
+
   if (process.env.DISABLE_AUTO_WORKERS === 'true') {
     console.log('[WorkerManager] Auto background workers are disabled.');
     return;
