@@ -1,0 +1,370 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+/* ── Preeso Design System ──────────────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --brand-primary:    #ffffff;
+  --brand-accent:     #2563eb;
+  --brand-accent-hover: #1d4ed8;
+  --brand-accent-glow: rgba(37,99,235,0.35);
+  --brand-electric:   #3b82f6;
+  --brand-gradient:   linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  --brand-gradient-vivid: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+
+  /* Background — deep navy */
+  --bg-primary:       #080e1f;
+  --bg-secondary:     #0d1426;
+  --bg-tertiary:      #111827;
+  --bg-card:          #0f1a2e;
+  --bg-card-hover:    #152035;
+  --bg-glass:         rgba(15, 26, 46, 0.75);
+  --bg-glass-light:   rgba(255,255,255,0.04);
+
+  /* Borders */
+  --border-color:     rgba(37,99,235,0.18);
+  --border-hover:     rgba(37,99,235,0.4);
+  --border-subtle:    rgba(255,255,255,0.07);
+
+  /* Text */
+  --text-primary:     #f0f4ff;
+  --text-secondary:   #94a3b8;
+  --text-muted:       #4a5568;
+  --text-accent:      #60a5fa;
+
+  /* Platform colors */
+  /* --amazon-color:     #ff9900; (Temporarily disabled) */
+  --flipkart-color:   #2874f0;
+  --myntra-color:     #ff3f6c;
+  --nykaa-color:      #e91e8c;
+  --ajio-color:       #e4002b;
+  --reliance-color:   #1c96c5;
+
+  /* Semantic */
+  --success:          #10b981;
+  --success-bg:       rgba(16,185,129,0.12);
+  --warning:          #f59e0b;
+  --error:            #ef4444;
+  --error-bg:         rgba(239,68,68,0.1);
+
+  /* Shadows & depth */
+  --shadow-sm:        0 1px 3px rgba(0,0,0,0.4);
+  --shadow-card:      0 4px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(37,99,235,0.08);
+  --shadow-hover:     0 8px 32px rgba(37,99,235,0.2), 0 0 0 1px rgba(37,99,235,0.3);
+  --shadow-glow:      0 0 24px rgba(37,99,235,0.4);
+  --shadow-navbar:    0 1px 0 rgba(37,99,235,0.15), 0 4px 24px rgba(0,0,0,0.6);
+
+  /* Radii */
+  --radius:           10px;
+  --radius-sm:        7px;
+  --radius-lg:        16px;
+  --radius-xl:        24px;
+
+  /* Transitions */
+  --transition:       all 0.22s cubic-bezier(0.4,0,0.2,1);
+  --transition-fast:  all 0.15s cubic-bezier(0.4,0,0.2,1);
+  --transition-slow:  all 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-primary);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37,99,235,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(99,102,241,0.06) 0%, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-accent); }
+
+/* ── Typography ───────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+.container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Glass card ────────────────────────────────────────────────────────────── */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+  text-decoration: none;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.btn-primary {
+  background: var(--brand-gradient);
+  color: white;
+  box-shadow: 0 4px 15px var(--brand-accent-glow);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+  box-shadow: 0 6px 20px rgba(37,99,235,0.5);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+.btn-outline:hover {
+  background: var(--bg-glass-light);
+  border-color: var(--border-hover);
+  color: var(--brand-electric);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--bg-glass-light);
+  color: var(--text-primary);
+}
+
+.btn-sm {
+  padding: 7px 14px;
+  font-size: 0.8rem;
+}
+
+/* ── Badges ────────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.badge-accent {
+  background: rgba(37,99,235,0.2);
+  color: var(--brand-electric);
+  border: 1px solid rgba(37,99,235,0.3);
+}
+
+/* ── Form inputs ────────────────────────────────────────────────────────────── */
+.form-input, select.form-input {
+  width: 100%;
+  padding: 11px 15px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: 'Poppins', sans-serif;
+  transition: var(--transition);
+  outline: none;
+  appearance: none;
+}
+.form-input:focus {
+  border-color: var(--brand-accent);
+  background: rgba(37,99,235,0.05);
+  box-shadow: 0 0 0 3px var(--brand-accent-glow);
+}
+.form-input::placeholder { color: var(--text-muted); }
+
+select.form-input {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 14px;
+  padding-right: 34px;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(37,99,235,0.2);
+  border-top-color: var(--brand-accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Product Grid ─────────────────────────────────────────────────────────── */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 1200px) { .products-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px)  { .products-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  {
+  .products-grid { grid-template-columns: 1fr; }
+  .container { padding: 0 16px; }
+}
+
+/* ── Skeleton loader ──────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400% 0; }
+  100% { background-position: 400% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    rgba(37,99,235,0.08) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Checkbox ─────────────────────────────────────────────────────────────── */
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+.checkbox-container:hover { color: var(--text-primary); }
+.checkbox-container input {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-accent);
+}
+
+/* ── Product Card hover ───────────────────────────────────────────────────── */
+.product-card-hover {
+  transition: transform 0.2s cubic-bezier(0.4,0,0.2,1),
+              border-color 0.2s,
+              box-shadow 0.2s;
+}
+.product-card-hover:hover {
+  transform: translateY(-5px);
+  border-color: var(--border-hover) !important;
+  box-shadow: var(--shadow-hover);
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes pulse {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37,99,235,0.7); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 8px rgba(37,99,235,0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.fade-in  { animation: fadeIn  0.3s cubic-bezier(0.4,0,0.2,1) forwards; }
+.slide-up { animation: slideUp 0.4s cubic-bezier(0.4,0,0.2,1) forwards; }
+
+/* ── Glow text ────────────────────────────────────────────────────────────── */
+.text-gradient {
+  background: var(--brand-gradient-vivid);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Navbar glass border ──────────────────────────────────────────────────── */
+.navbar-scrolled {
+  background: rgba(8,14,31,0.92) !important;
+  backdrop-filter: blur(24px) saturate(2);
+  -webkit-backdrop-filter: blur(24px) saturate(2);
+  box-shadow: var(--shadow-navbar);
+}
+
+/* ── Hero orbs ────────────────────────────────────────────────────────────── */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: float 6s ease-in-out infinite;
+}
+.orb-1 {
+  width: 500px; height: 500px;
+  top: -150px; left: -100px;
+  background: radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%);
+}
+.orb-2 {
+  width: 400px; height: 400px;
+  bottom: -100px; right: -80px;
+  background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+  animation-delay: -3s;
+}
+
+/* ── Platform chip colors ─────────────────────────────────────────────────── */
+/* .chip-amazon   { background: rgba(255,153,0,0.15);   color: #ff9900;   border: 1px solid rgba(255,153,0,0.25);   } (Temporarily disabled) */
+.chip-flipkart { background: rgba(40,116,240,0.15);  color: #2874f0;   border: 1px solid rgba(40,116,240,0.25);  }
+.chip-myntra   { background: rgba(255,63,108,0.15);  color: #ff3f6c;   border: 1px solid rgba(255,63,108,0.25);  }
+.chip-nykaa    { background: rgba(233,30,140,0.15);  color: #e91e8c;   border: 1px solid rgba(233,30,140,0.25);  }
+.chip-ajio     { background: rgba(228,0,43,0.15);    color: #e4002b;   border: 1px solid rgba(228,0,43,0.25);    }
+.chip-reliance { background: rgba(28,150,197,0.15);  color: #1c96c5;   border: 1px solid rgba(28,150,197,0.25);  }

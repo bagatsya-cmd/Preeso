@@ -1,0 +1,181 @@
+{
+  "iphone 15": [
+    {
+      "name": "Apple iPhone 15 (128GB, Black)",
+      "brand": "Apple",
+      "category": "Smartphones",
+      "image": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400",
+      "tags": [
+        "iphone",
+        "apple",
+        "smartphone"
+      ],
+      "stores": [
+        {
+          "storeName": "Amazon",
+          "price": 69999,
+          "originalPrice": 79900,
+          "discount": 12,
+          "rating": 4.5,
+          "reviewCount": 3420,
+          "delivery": "Free, 2-day",
+          "deliveryDays": 2,
+          "link": "https://www.amazon.in/s?k=iphone+15",
+          "inStock": true
+        },
+        {
+          "storeName": "Flipkart",
+          "price": 71499,
+          "originalPrice": 79900,
+          "discount": 10,
+          "rating": 4.4,
+          "reviewCount": 2870,
+          "delivery": "Free, 3-day",
+          "deliveryDays": 3,
+          "link": "https://www.flipkart.com/search?q=iphone+15",
+          "inStock": true
+        },
+        {
+          "storeName": "Reliance Digital",
+          "price": 72999,
+          "originalPrice": 79900,
+          "discount": 8,
+          "rating": 4.3,
+          "reviewCount": 980,
+          "delivery": "Free, Same Day",
+          "deliveryDays": 0,
+          "link": "https://www.reliancedigital.in/search?q=iphone+15",
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "name": "Apple iPhone 15 Pro (256GB, Titanium)",
+      "brand": "Apple",
+      "category": "Smartphones",
+      "image": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400",
+      "tags": [
+        "iphone",
+        "apple",
+        "pro",
+        "smartphone"
+      ],
+      "stores": [
+        {
+          "storeName": "Amazon",
+          "price": 119999,
+          "originalPrice": 134900,
+          "discount": 11,
+          "rating": 4.7,
+          "reviewCount": 5120,
+          "delivery": "Free, 2-day",
+          "deliveryDays": 2,
+          "link": "https://www.amazon.in/s?k=iphone+15+pro",
+          "inStock": true
+        },
+        {
+          "storeName": "Flipkart",
+          "price": 121000,
+          "originalPrice": 134900,
+          "discount": 10,
+          "rating": 4.6,
+          "reviewCount": 4210,
+          "delivery": "Free, 3-day",
+          "deliveryDays": 3,
+          "link": "https://www.flipkart.com/search?q=iphone+15+pro",
+          "inStock": true
+        }
+      ]
+    }
+  ],
+  "sony headphones": [
+    {
+      "name": "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
+      "brand": "Sony",
+      "category": "Audio",
+      "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
+      "tags": [
+        "sony",
+        "headphones",
+        "anc",
+        "wireless"
+      ],
+      "stores": [
+        {
+          "storeName": "Amazon",
+          "price": 24990,
+          "originalPrice": 34990,
+          "discount": 28,
+          "rating": 4.7,
+          "reviewCount": 12430,
+          "delivery": "Free, 2-day",
+          "deliveryDays": 2,
+          "link": "https://www.amazon.in/s?k=sony+wh1000xm5",
+          "inStock": true
+        },
+        {
+          "storeName": "Flipkart",
+          "price": 23999,
+          "originalPrice": 34990,
+          "discount": 31,
+          "rating": 4.6,
+          "reviewCount": 9870,
+          "delivery": "Free, 3-day",
+          "deliveryDays": 3,
+          "link": "https://www.flipkart.com/search?q=sony+wh1000xm5",
+          "inStock": true
+        },
+        {
+          "storeName": "Reliance Digital",
+          "price": 25999,
+          "originalPrice": 34990,
+          "discount": 25,
+          "rating": 4.5,
+          "reviewCount": 3210,
+          "delivery": "Free, Same Day",
+          "deliveryDays": 0,
+          "link": "https://www.reliancedigital.in/search?q=sony+wh1000xm5",
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "name": "Apple AirPods Pro (2nd Gen) with MagSafe",
+      "brand": "Apple",
+      "category": "Audio",
+      "image": "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=400",
+      "tags": [
+        "airpods",
+        "apple",
+        "earbuds",
+        "anc"
+      ],
+      "stores": [
+        {
+          "storeName": "Amazon",
+          "price": 22490,
+          "originalPrice": 26900,
+          "discount": 16,
+          "rating": 4.6,
+          "reviewCount": 8920,
+          "delivery": "Free, 2-day",
+          "deliveryDays": 2,
+          "link": "https://www.amazon.in/s?k=airpods+pro+2",
+          "inStock": true
+        },
+        {
+          "storeName": "Flipkart",
+          "price": 21999,
+          "originalPrice": 26900,
+          "discount": 18,
+          "rating": 4.5,
+          "reviewCount": 6740,
+          "delivery": "Free, 3-day",
+          "deliveryDays": 3,
+          "link": "https://www.flipkart.com/search?q=airpods+pro+2",
+          "inStock": true
+        }
+      ]
+    }
+  ]
+}
