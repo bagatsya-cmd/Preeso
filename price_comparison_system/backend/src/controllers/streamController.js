@@ -115,6 +115,14 @@ function makeSend(res, alive) {
       } else {
         dataObj = { type: typeOrObj, ...payload };
       }
+      if (dataObj.type === 'partial-results' && dataObj.products && dataObj.products.length > 0) {
+        console.log(
+          dataObj.cached ? "[CACHE IMAGE CHECK]" : "[SSE IMAGE CHECK]",
+          dataObj.products[0]?.title,
+          dataObj.products[0]?.image,
+          dataObj.products[0]?.imageUrl
+        );
+      }
       res.write(`data: ${JSON.stringify(dataObj)}\n\n`);
       if (res.flush) res.flush();
     } catch (_) {}
@@ -156,6 +164,16 @@ exports.streamSearch = async (req, res) => {
       if (cachedResult && cachedCount > 0) {
         const sanitized = sanitizeProducts(cachedResult.products);
         console.log('[SSE] Sending results (final=true)');
+        
+        if (sanitized && sanitized.length > 0) {
+          console.log(
+            "[CACHE IMAGE CHECK]",
+            sanitized[0]?.title,
+            sanitized[0]?.image,
+            sanitized[0]?.imageUrl
+          );
+        }
+        
         res.write(`data: ${JSON.stringify({ type: 'partial-results', final: true, products: sanitized })}\n\n`);
         res.write(`data: ${JSON.stringify({ type: 'complete', final: true, totalUnique: sanitized.length, totalMs: Date.now() - searchStart })}\n\n`);
         res.write(`data: ${JSON.stringify({ type: 'completed', totalUnique: sanitized.length, totalMs: Date.now() - searchStart })}\n\n`);
@@ -169,6 +187,16 @@ exports.streamSearch = async (req, res) => {
       console.log(`[SSE] Catalog HIT for "${query}"`);
       const sanitizedCatalog = sanitizeProducts(catalogProducts);
       console.log('[SSE] Sending results (final=true)');
+      
+      if (sanitizedCatalog && sanitizedCatalog.length > 0) {
+        console.log(
+          "[CACHE IMAGE CHECK]",
+          sanitizedCatalog[0]?.title,
+          sanitizedCatalog[0]?.image,
+          sanitizedCatalog[0]?.imageUrl
+        );
+      }
+      
       res.write(`data: ${JSON.stringify({ type: 'partial-results', final: true, cached: true, source: 'catalog', products: sanitizedCatalog })}\n\n`);
       res.write(`data: ${JSON.stringify({ type: 'complete', final: true, totalUnique: sanitizedCatalog.length, totalMs: Date.now() - searchStart })}\n\n`);
       res.write(`data: ${JSON.stringify({ type: 'completed', totalUnique: sanitizedCatalog.length, totalMs: Date.now() - searchStart })}\n\n`);

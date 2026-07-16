@@ -30,6 +30,10 @@ class MyntraScraper extends BaseScraper {
                   link = 'https://www.myntra.com/' + link;
                 }
                 const image = p.searchImage || (p.images?.[0]?.src) || p.imageUrl || '';
+                const imageCandidates = [];
+                if (p.searchImage) imageCandidates.push({ url: p.searchImage, attr: 'json-searchImage', score: 100 });
+                if (p.images?.[0]?.src && p.images[0].src !== p.searchImage) imageCandidates.push({ url: p.images[0].src, attr: 'json-images[0]', score: 90 });
+                if (p.imageUrl && p.imageUrl !== p.searchImage) imageCandidates.push({ url: p.imageUrl, attr: 'json-imageUrl', score: 80 });
                 return {
                   platform: 'Myntra',
                   title: p.productName || `${p.brand} ${p.additionalInfo || ''}`.trim(),
@@ -37,6 +41,7 @@ class MyntraScraper extends BaseScraper {
                   originalPrice: parseFloat(p.mrp || p.price),
                   link,
                   image,
+                  imageCandidates,
                   brand: p.brand || 'Unknown',
                   inStock: true
                 };
@@ -56,6 +61,7 @@ class MyntraScraper extends BaseScraper {
           const cleaned = cleanImageUrl(p.image);
           p.image = validateImageUrl(cleaned, 'https://www.myntra.com') || null;
           logImageExtraction('Myntra', p.title, p.image, p.image ? 'json' : null);
+          if (!p.imageCandidates) p.imageCandidates = [];
           return p;
         });
       } else {
@@ -122,28 +128,31 @@ class MyntraScraper extends BaseScraper {
               link = urlObj.toString();
             } catch(e) {}
 
-            // Image extraction using helper
-            const imgResult = extractImg(element, 'Myntra', window.location.href);
-            const image = imgResult.image;
-            const sourceAttr = imgResult.sourceAttr;
-
-            return {
-              platform: 'Myntra',
-              title,
-              price,
-              originalPrice,
-              link,
-              image,
-              sourceAttr,
-              brand,
-              inStock: true
-            };
-          }, el, extractImageInBrowser.toString());
-
-          if (data && data.link && data.link.startsWith('http')) {
-            logImageExtraction('Myntra', data.title, data.image, data.sourceAttr);
-            results.push(data);
-          }
+             // Image extraction using helper
+             const imgResult = extractImg(element, 'Myntra', window.location.href);
+             const image = imgResult.image;
+             const sourceAttr = imgResult.sourceAttr;
+             const candidates = imgResult.candidates;
+ 
+             return {
+               platform: 'Myntra',
+               title,
+               price,
+               originalPrice,
+               link,
+               image,
+               sourceAttr,
+               candidates,
+               imageCandidates: candidates || [],
+               brand,
+               inStock: true
+             };
+           }, el, extractImageInBrowser.toString());
+ 
+           if (data && data.link && data.link.startsWith('http')) {
+             logImageExtraction('Myntra', data.title, data.image, data.sourceAttr, data.candidates);
+             results.push(data);
+           }
         } catch (err) {
           console.warn(`[Myntra] Failed to parse product element: ${err.message}`);
         }

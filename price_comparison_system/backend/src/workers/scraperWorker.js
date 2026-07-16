@@ -6,6 +6,11 @@ const { SCRAPING_ENABLED } = require('../config/features');
 const ScrapeJob = require('../models/scrapeJob');
 const ScrapedProduct = require('../models/scrapedProduct');
 const { generateUniqueHash, generateSoftHash } = require('../utils/deduplicator');
+const { scoreProduct } = require('../utils/catalogQuality');
+
+const ActiveCatalog = require('../models/activeCatalog');
+const matchingService = require('../services/matchingService');
+const pubSub = require('../utils/pubSub');
 
 // Import approved scrapers
 const flipkartScraper = require('../scrapers/flipkart');
@@ -27,14 +32,25 @@ async function runScraping(job) {
   const query = job.query;
   const queryKey = job.queryKey;
   const jobId = job._id;
+  const scrapeJobId = jobId.toString();
   
   console.log("scrapeStarted");
   console.log("Active retailers:", APPROVED_PLATFORMS.length);
+  console.log(`[GENERATION START] queryKey="${queryKey}" scrapeJobId="${scrapeJobId}"`);
   console.log(`[ScraperWorker] Starting parallel scrape for query: "${query}" (queryKey: "${queryKey}")`);
   
   let totalFetched = 0;
   let totalInserted = 0;
   let cancelled = false;
+
+  const PLATFORM_NAME_MAP = {
+    amazon:          'Amazon',
+    flipkart:        'Flipkart',
+    myntra:          'Myntra',
+    reliance:        'Reliance Digital',
+    ajio:            'AJIO',
+    nykaa:           'Nykaa',
+  };
 
   // Execute scrapers concurrently and process outcomes incrementally
   const scrapePromises = APPROVED_PLATFORMS.map(async (platform) => {
@@ -56,13 +72,29 @@ async function runScraping(job) {
       const itemsToUpsert = [];
       results.forEach((item) => {
         if (item.title && item.price && item.link) {
+          const productForScoring = {
+            title: item.title,
+            price: item.price,
+            image: item.image,
+            link: item.link,
+            brand: item.brand || 'Unknown'
+          };
+          const qScore = scoreProduct(productForScoring);
+
+          if (qScore < 50) {
+            console.warn(`[CatalogQuality] LOW QUALITY WARNING: Retailer=${platform.name} Title="${item.title.substring(0, 50)}..." Price=${item.price} ImagePresent=${!!item.image} Score=${qScore}`);
+          }
+
           itemsToUpsert.push({
             title: item.title,
             price: item.price,
             image: item.image || null,
+            imageCandidates: item.imageCandidates || [],
+            qualityScore: qScore,
             url: item.link,
             source: platform.name,
             queryKey: queryKey,
+            scrapeJobId: scrapeJobId,
             scrapedAt: new Date(),
             uniqueHash: generateSoftHash(item.title, item.price, platform.name)
           });
@@ -75,7 +107,7 @@ async function runScraping(job) {
 
         const operations = itemsToUpsert.map((item) => ({
           updateOne: {
-            filter: { uniqueHash: item.uniqueHash },
+            filter: { uniqueHash: item.uniqueHash, scrapeJobId: item.scrapeJobId },
             update: { $set: item },
             upsert: true
           }
@@ -90,10 +122,23 @@ async function runScraping(job) {
         // Check cancellation before emitting update notification
         await cancellationManager.checkCancelled(jobId);
 
-        // Notify aggregator that there is new data to aggregate
-        await ScrapeJob.findByIdAndUpdate(job._id, {
-          $set: { needsAggregation: true, updatedAt: new Date() }
-        });
+        // Stream retailer results directly via SSE to preserve incremental UX
+        const formattedRetailerRaw = itemsToUpsert.map(doc => ({
+          title: doc.title,
+          price: doc.price,
+          image: doc.image || null,
+          link: doc.url,
+          platform: PLATFORM_NAME_MAP[doc.source.toLowerCase()] || doc.source,
+          brand: 'Unknown',
+          category: 'General'
+        }));
+        const retailerGroupedCards = matchingService.mergeProducts(formattedRetailerRaw, query);
+        const pubSubPayload = {
+          type: 'partial-results',
+          products: retailerGroupedCards,
+          final: false
+        };
+        await pubSub.publish(`search:update:${queryKey}`, pubSubPayload);
       }
     } catch (err) {
       if (err.message === 'JOB_CANCELLED') {
@@ -114,7 +159,12 @@ async function runScraping(job) {
   }
 
   console.log("scrapeFinished");
+  console.log(`[GENERATION COMPLETE] queryKey="${queryKey}" totalFetched=${totalFetched} totalInserted=${totalInserted}`);
   console.log(`[ScraperWorker] Scraping finished. Total fetched: ${totalFetched}, Total inserted: ${totalInserted}`);
+
+  await ScrapeJob.findByIdAndUpdate(jobId, {
+    $set: { needsAggregation: true, updatedAt: new Date() }
+  });
 }
 
 async function startWorker() {

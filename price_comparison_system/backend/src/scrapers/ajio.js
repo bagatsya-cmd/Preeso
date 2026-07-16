@@ -30,15 +30,33 @@ class AjioScraper extends BaseScraper {
       const results = [];
 
       // Wait for product cards to render
-      await page.waitForSelector(this.containerSelector, { timeout: 10000 }).catch(() => {
+      await page.waitForSelector(this.containerSelector, { timeout: 15000 }).catch(() => {
         console.log('[AJIO] Product cards selector wait timed out');
       });
 
-      // Pure DOM scroll to trigger lazy image loading (no mouse simulation)
-      await page.evaluate(() => {
-        window.scrollBy(0, 1200);
+      // Deep scroll to trigger lazy image loading — two passes
+      await page.evaluate(async () => {
+        // First pass: scroll down in steps
+        for (let i = 0; i < 8; i++) {
+          window.scrollBy(0, 600);
+          await new Promise(r => setTimeout(r, 400));
+        }
+        // Scroll back to top
+        window.scrollTo(0, 0);
+        await new Promise(r => setTimeout(r, 1000));
+        // Second pass: slower scroll to trigger any remaining lazy loaders
+        for (let i = 0; i < 6; i++) {
+          window.scrollBy(0, 400);
+          await new Promise(r => setTimeout(r, 500));
+        }
+        window.scrollTo(0, 0);
+        await new Promise(r => setTimeout(r, 1000));
       });
-      await new Promise(r => setTimeout(r, 800));
+
+      // Wait for network to settle after scrolling
+      try {
+        await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+      } catch (_) {}
 
       const rawProducts = await page.evaluate((extractImgFn) => {
         const items = [];
@@ -96,30 +114,64 @@ class AjioScraper extends BaseScraper {
               if (mrp > price) originalPrice = mrp;
             }
 
-            // Image extraction using helper
-            const imgResult = extractImg(card, 'AJIO', window.location.href);
-            const image = imgResult.image;
-            const sourceAttr = imgResult.sourceAttr;
+             // Image extraction using helper
+             const imgResult = extractImg(card, 'AJIO', window.location.href);
+             const image = imgResult.image;
+             const sourceAttr = imgResult.sourceAttr;
+             const candidates = imgResult.candidates;
+ 
+             items.push({
+               title, price, originalPrice, link, image, sourceAttr, candidates,
+               imageCandidates: candidates || [],
+               brand
+             });
+           } catch (_) {}
+         }
+         return items;
+       }, extractImageInBrowser.toString());
 
-            items.push({ title, price, originalPrice, link, image, sourceAttr, brand });
-          } catch (_) {}
+      // Image recovery for products missing images
+      for (let i = 0; i < rawProducts.length; i++) {
+        const p = rawProducts[i];
+        if (p && p.title && p.price && !p.image) {
+          console.log(`[AJIO] Image recovery: "${p.title.substring(0, 40)}..." — waiting 2s and re-extracting`);
+          await new Promise(r => setTimeout(r, 2000));
+
+          const recovered = await page.evaluate((idx, extractImgFn) => {
+            const cards = Array.from(document.querySelectorAll('.rilrtl-products-list__item'));
+            const card = cards[idx];
+            if (!card) return null;
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const extractImg = new Function('return ' + extractImgFn)();
+            return extractImg(card, 'AJIO', window.location.href);
+          }, i, extractImageInBrowser.toString());
+
+          if (recovered && recovered.image) {
+            console.log(`[AJIO] Image recovery SUCCESS: ${recovered.image.substring(0, 80)}`);
+            rawProducts[i].image = recovered.image;
+            rawProducts[i].sourceAttr = recovered.sourceAttr;
+            rawProducts[i].candidates = recovered.candidates;
+            rawProducts[i].imageCandidates = recovered.candidates || [];
+          } else {
+            console.log(`[AJIO] Image recovery FAILED for: "${p.title.substring(0, 40)}..."`);
+          }
         }
-        return items;
-      }, extractImageInBrowser.toString());
-
-      for (const p of rawProducts) {
-        logImageExtraction('AJIO', p.title, p.image, p.sourceAttr);
-        results.push({
-          title:         p.title,
-          price:         p.price,
-          originalPrice: p.originalPrice || p.price,
-          link:          p.link,
-          image:         p.image || null,
-          brand:         p.brand || 'Unknown',
-          platform:      'AJIO',
-          inStock:       true,
-        });
       }
+ 
+       for (const p of rawProducts) {
+         logImageExtraction('AJIO', p.title, p.image, p.sourceAttr, p.candidates);
+         results.push({
+           title:         p.title,
+           price:         p.price,
+           originalPrice: p.originalPrice || p.price,
+           link:          p.link,
+           image:         p.image || null,
+           imageCandidates: p.imageCandidates || [],
+           brand:         p.brand || 'Unknown',
+           platform:      'AJIO',
+           inStock:       true,
+         });
+       }
 
       return results;
     }, query, jobId);

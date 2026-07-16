@@ -11,7 +11,7 @@ class BaseScraper {
   constructor(platformName) {
     this.platformName = platformName;
     this.maxRetries = 3;
-    this.timeoutMs = 15000;
+    this.timeoutMs = 30000;
     this.skipInterception = false;
     this.containerSelector = null; // Subclasses should override this
   }
@@ -59,7 +59,7 @@ class BaseScraper {
           console.log(`[${this.platformName}] [Attempt ${attempts}/${this.maxRetries}] Timeout value being used: ${this.timeoutMs}ms`);
 
           let navigationSuccess = false;
-          let waitUntilVal = 'load';
+          let waitUntilVal = this.waitUntil || 'load';
           let response = null;
 
           try {
@@ -94,8 +94,15 @@ class BaseScraper {
             }
           }
 
-          // Stabilization delay: 1.5 seconds post-navigation
-          await new Promise(r => setTimeout(r, 1500));
+          // Stabilization delay: 3 seconds post-navigation for catalog-quality scraping
+          await new Promise(r => setTimeout(r, 3000));
+
+          // Wait for network to settle (lazy-load XHRs, image fetches, etc.)
+          try {
+            await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+          } catch (_) {
+            // Network may never fully idle on some pages; continue regardless
+          }
 
           let title = '';
           try { title = await page.title(); } catch (_) {}

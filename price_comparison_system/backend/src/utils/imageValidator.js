@@ -1,23 +1,17 @@
 /**
  * Image Validation & Scoring Utility
- * Philosophy: allow-by-default, reject only clearly broken URLs, score by relevance.
+ *
+ * Philosophy: allow-by-default, reject only clearly broken/invalid URLs, score by relevance.
+ *
+ * IMPORTANT: validateImage is PERMISSIVE — it does NOT use a CDN whitelist or keyword blocklist.
+ * Only hard rejects: data URIs, base64 blobs, non-http(s), and empty strings.
+ * The scoring logic (scoreImage) is used to RANK candidates, not filter them.
  */
 
-// Hard-reject if URL contains any of these
-const REJECT_TERMS = [
-  'placeholder', 'sprite', 'icon', 'logo', 'default',
-  'data:image', 'base64', 'blank', 'transparent',
-  'noimage', 'no-image', 'no_image', 'dummy',
-  '1x1', '2x2', 'spacer', 'loading.gif', 'pixel.gif', 'spinner',
-];
-
-// Hard-reject specific photo IDs
+// Hard-reject specific known placeholder/tracker photo IDs
 const BANNED_PHOTO_IDS = [
-  'photo-1505740420928-5e560c06d30e', // headphone Unsplash
+  'photo-1505740420928-5e560c06d30e', // generic headphone Unsplash image
 ];
-
-// Reject if the URL ends with .gif (animated loader gifs)
-const REJECT_EXTENSIONS = ['.gif'];
 
 class ImageValidator {
   /**
@@ -33,33 +27,34 @@ class ImageValidator {
 
   /**
    * Return the cleaned URL if valid, else null.
+   *
+   * PERMISSIVE: only hard-rejects:
+   *   - data: URIs (inline base64 images)
+   *   - base64 blobs
+   *   - about:blank / empty strings
+   *   - non-http(s) schemes
+   *   - specific known bad photo IDs
+   *
+   * Does NOT reject based on CDN whitelist or URL keywords like 'loading', 'default', 'icon', etc.
    */
   validateImage(url) {
     const u = this.normalizeImageUrl(url);
-    if (!u) return null;
+    if (!u || u === 'about:blank') return null;
 
-    // Reject data URIs of any kind
-    if (u.toLowerCase().startsWith('data:')) return null;
+    const lower = u.toLowerCase();
+
+    // Hard-reject data URIs
+    if (lower.startsWith('data:')) return null;
+
+    // Hard-reject base64 blobs
+    if (lower.includes('base64,')) return null;
 
     // Must be absolute HTTP/HTTPS
     if (!u.startsWith('http://') && !u.startsWith('https://')) return null;
 
-    const lower = u.toLowerCase();
-
-    // Reject banned photo IDs
+    // Reject specific banned photo IDs (e.g. known wrong Unsplash images)
     for (const id of BANNED_PHOTO_IDS) {
       if (lower.includes(id)) return null;
-    }
-
-    // Reject known bad terms
-    for (const term of REJECT_TERMS) {
-      if (lower.includes(term)) return null;
-    }
-
-    // Reject gif extensions
-    for (const ext of REJECT_EXTENSIONS) {
-      const pathOnly = lower.split('?')[0];
-      if (pathOnly.endsWith(ext)) return null;
     }
 
     return u;
@@ -68,6 +63,7 @@ class ImageValidator {
   /**
    * Score a URL: higher = better product image.
    * Returns -1 for invalid URLs (fails validateImage).
+   * Used to RANK candidates, not filter them.
    */
   scoreImage(url) {
     const u = this.validateImage(url);
@@ -76,7 +72,7 @@ class ImageValidator {
     const lower = u.toLowerCase();
     let score = 0;
 
-    // ── Product keyword boosts (+5) ───────────────────────────────────────────
+    // ── Product keyword boosts (+5) ──────────────────────────────────────────
     const PRODUCT_KEYWORDS = [
       'iphone', 'samsung', 'oneplus', 'realme', 'redmi', 'pixel',
       'macbook', 'airpods', 'ipad', 'galaxy', 'nike', 'adidas',
@@ -85,16 +81,16 @@ class ImageValidator {
       'skincare', 'moisturizer', 'serum', 'foundation', 'perfume',
     ];
     for (const kw of PRODUCT_KEYWORDS) {
-      if (lower.includes(kw)) { score += 5; break; } // only count once
+      if (lower.includes(kw)) { score += 5; break; }
     }
 
-    // ── Known e-commerce CDN boosts (+4) ─────────────────────────────────────
+    // ── Known e-commerce CDN boosts (+4) ────────────────────────────────────
     const GOOD_CDNS = [
       'amazon.in', 'm.media-amazon',
       'fkimg.com', 'rukminim',
       'reliancedigital',
       'myntassets', 'myntraassets',
-      'ajio.com', 'ajioimages',
+      'ajio.com', 'ajioimages', 'fynd.com',
       'nykaa', 'nykaafashion',
       'cloudinary',
     ];
@@ -102,18 +98,22 @@ class ImageValidator {
       if (lower.includes(cdn)) { score += 4; break; }
     }
 
-    // ── Generic quality signals ───────────────────────────────────────────────
+    // ── Generic quality signals ──────────────────────────────────────────────
     if (lower.includes('product')) score += 2;
     if (u.startsWith('https://'))  score += 1;
 
-    // ── Negative signals (demote, do not reject) (−5) ────────────────────────
-    const BAD_TERMS = ['icon', 'logo', 'banner', 'placeholder', 'sprite', 'ad/', '/ad'];
+    // ── Known image extensions (+1) ─────────────────────────────────────────
+    const pathOnly = lower.split('?')[0];
+    const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif'];
+    if (IMAGE_EXTS.some(ext => pathOnly.endsWith(ext))) score += 1;
+
+    // ── Negative signals (demote, do NOT reject) ─────────────────────────────
+    const BAD_TERMS = ['sprite', 'banner', 'ad/', '/ad'];
     for (const bt of BAD_TERMS) {
       if (lower.includes(bt)) { score -= 5; break; }
     }
 
-    // ── Penalise tiny dimension hints in the URL ──────────────────────────────
-    // e.g. _SX38_, 32x32, _UY44_ — suggest thumbnail
+    // ── Penalise tiny dimension hints in the URL (thumbnail signals) ─────────
     if (/[_\-](s|sx|sy|uy|ac)\d{1,3}[_\.]/i.test(lower)) score -= 2;
 
     return score;
@@ -129,6 +129,7 @@ class ImageValidator {
       const s = this.scoreImage(url);
       if (s > bestScore) { bestScore = s; best = url; }
     }
+    // Accept any validated URL even with score 0 (no CDN boost, no extension — still a valid URL)
     return (best !== null && bestScore >= 0) ? this.validateImage(best) : null;
   }
 

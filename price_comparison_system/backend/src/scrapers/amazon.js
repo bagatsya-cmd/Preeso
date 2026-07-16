@@ -28,10 +28,25 @@ class AmazonScraper extends BaseScraper {
 
       const results = [];
       
-      // Wait for products to load
-      await page.waitForSelector(this.containerSelector, { timeout: 10000 }).catch(() => {
-        console.log('[Amazon] Search result selector wait timed out');
+      // Wait for network to settle
+      try {
+        await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+      } catch (_) {}
+
+      // Scroll to trigger lazy loading of images
+      await page.evaluate(async () => {
+        for (let i = 0; i < 4; i++) {
+          window.scrollBy(0, 800);
+          await new Promise(r => setTimeout(r, 400));
+        }
+        window.scrollTo(0, 0);
+        await new Promise(r => setTimeout(r, 1000));
       });
+
+      // Wait for network to settle after scrolling
+      try {
+        await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+      } catch (_) {}
 
       const products = await page.$$(this.containerSelector);
       
@@ -63,26 +78,52 @@ class AmazonScraper extends BaseScraper {
             if (link.startsWith('/')) link = 'https://www.amazon.in' + link;
             try { const u = new URL(link); u.search = ''; link = u.toString(); } catch (e) {}
 
-            // Image extraction using helper
-            const imgResult = extractImg(element, 'Amazon', window.location.href);
-            const image = imgResult.image;
-            const sourceAttr = imgResult.sourceAttr;
+             // Image extraction using helper
+             const imgResult = extractImg(element, 'Amazon', window.location.href);
+             const image = imgResult.image;
+             const sourceAttr = imgResult.sourceAttr;
+             const candidates = imgResult.candidates;
+ 
+             return {
+               platform: 'Amazon', title, price, originalPrice, link,
+               image, sourceAttr, candidates,
+               imageCandidates: candidates || [],
+               inStock: true
+             };
+           }, el, extractImageInBrowser.toString());
+ 
+            if (data && data.link && data.link.startsWith('http')) {
+              if (!data.image) {
+                console.log(`[Amazon] Image recovery: "${data.title.substring(0, 40)}..." — waiting 2s and re-extracting`);
+                await new Promise(r => setTimeout(r, 2000));
+                await page.evaluate((element) => {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, el);
+                await new Promise(r => setTimeout(r, 500));
+                const recovered = await page.evaluate((element, extractImgFn) => {
+                  const extractImg = new Function('return ' + extractImgFn)();
+                  return extractImg(element, 'Amazon', window.location.href);
+                }, el, extractImageInBrowser.toString());
+                if (recovered && recovered.image) {
+                  console.log(`[Amazon] Image recovery SUCCESS: ${recovered.image.substring(0, 80)}`);
+                  data.image = recovered.image;
+                  data.sourceAttr = recovered.sourceAttr;
+                  data.imageCandidates = recovered.candidates || [];
+                }
+              }
 
-            return { platform: 'Amazon', title, price, originalPrice, link, image, sourceAttr, inStock: true };
-          }, el, extractImageInBrowser.toString());
-
-          if (data && data.link && data.link.startsWith('http')) {
-            logImageExtraction('Amazon', data.title, data.image, data.sourceAttr);
-            results.push({
-              platform: data.platform,
-              title: data.title,
-              price: data.price,
-              originalPrice: data.originalPrice,
-              link: data.link,
-              image: data.image || null,
-              inStock: true
-            });
-          }
+              logImageExtraction('Amazon', data.title, data.image, data.sourceAttr, data.imageCandidates);
+              results.push({
+                platform: data.platform,
+                title: data.title,
+                price: data.price,
+                originalPrice: data.originalPrice,
+                link: data.link,
+                image: data.image || null,
+                imageCandidates: data.imageCandidates || [],
+                inStock: true
+              });
+            }
         } catch (err) {
           console.warn(`[Amazon] Failed to parse product element: ${err.message}`);
         }

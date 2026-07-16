@@ -6,6 +6,7 @@ const { SCRAPING_ENABLED } = require('../config/features');
 const ScrapeJob = require('../models/scrapeJob');
 const ScrapedProduct = require('../models/scrapedProduct');
 const ProductResult = require('../models/productResult');
+const ActiveCatalog = require('../models/activeCatalog');
 const matchingService = require('../services/matchingService');
 const pubSub = require('../utils/pubSub');
 
@@ -21,15 +22,18 @@ const PLATFORM_NAME_MAP = {
 async function runAggregation(job) {
   const query = job.query;
   const queryKey = job.queryKey;
+  const scrapeJobId = job._id.toString();
   
   console.log("aggregationStarted");
-  console.log(`[AggregatorWorker] Aggregating raw results for queryKey: "${queryKey}"`);
+  console.log(`[AggregatorWorker] Aggregating raw results for queryKey: "${queryKey}" generation: "${scrapeJobId}"`);
   
-  // Fetch raw scraped products for queryKey
-  let rawScraped = await ScrapedProduct.find({ queryKey }).lean();
+  // Fetch raw scraped products for the specific scrape generation
+  let rawScraped = await ScrapedProduct.find({ queryKey, scrapeJobId }).lean();
   if (process.env.ENABLE_AMAZON !== 'true') {
     rawScraped = rawScraped.filter(doc => doc.source?.toLowerCase() !== 'amazon');
   }
+  
+  console.log(`[AGGREGATOR READ] queryKey="${queryKey}" scrapeJobId="${scrapeJobId}" recordsLoaded=${rawScraped.length}`);
   console.log(`[AggregatorWorker] Found ${rawScraped.length} raw items in scraped_products`);
   console.log(`[PIPELINE-TRACE] Stage 1 (DB Read): ${rawScraped.length} raw scraped products for queryKey="${queryKey}"`);
   
@@ -69,6 +73,16 @@ async function runAggregation(job) {
     { upsert: true, new: true }
   );
   console.log(`[PIPELINE-TRACE] Stage 3 (DB Save): ${savedResult?.products?.length ?? 'N/A'} products saved to product_results for queryKey="${queryKey}"`);
+
+  // Atomically switch active generation after successful aggregation
+  const oldActive = await ActiveCatalog.findOne({ queryKey });
+  await ActiveCatalog.findOneAndUpdate(
+    { queryKey },
+    { activeScrapeJobId: scrapeJobId, updatedAt: new Date() },
+    { upsert: true }
+  );
+  
+  console.log(`[ACTIVE GENERATION SWITCH] queryKey="${queryKey}" oldGeneration="${oldActive?.activeScrapeJobId || 'none'}" newGeneration="${scrapeJobId}"`);
 
   console.log("aggregationFinished");
   console.log(`[AggregatorWorker] Grouped results saved to product_results.`);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/router';
 
@@ -131,6 +131,18 @@ const ProductCard = memo(function ProductCard({ product, index = 99, inWishlistP
   const [retryCount, setRetryCount]     = useState(0);   // retries for current URL
   const [imageLoaded, setImageLoaded]   = useState(false);
 
+  // ── Stable product identity — drives state resets on reuse ────────────────
+  const productIdentity = product._id || product.stores?.[0]?.url || `${product.baseName || product.name}-${product.stores?.[0]?.storeName}`;
+
+  // ── CRITICAL: Reset image state when product identity changes ─────────────
+  // Without this, memo'd component reuse during sorting leaks stale candidateIdx,
+  // retryCount, and imageLoaded from the previous product occupying this slot.
+  useEffect(() => {
+    setCandidateIdx(0);
+    setRetryCount(0);
+    setImageLoaded(false);
+  }, [productIdentity]);
+
   useEffect(() => {
     if (inWishlistProp !== undefined) {
       setInWishlist(inWishlistProp);
@@ -152,9 +164,31 @@ const ProductCard = memo(function ProductCard({ product, index = 99, inWishlistP
   const validStores = stores.filter(s => s.price > 0).sort((a, b) => a.price - b.price);
   const lowestStore = validStores[0] || null;
 
-  // Memoised candidate list — stable across renders
-  const candidates = buildCandidates(product);
+  // Memoised candidate list — stable across renders, recomputed on product change
+  const candidates = useMemo(() => buildCandidates(product), [productIdentity]);
   const currentUrl = candidates[candidateIdx] ?? null;
+
+  // ── IMAGE_RENDER debug log ────────────────────────────────────────────────
+  console.log(
+    "[PRODUCT CARD IMAGE]",
+    product.title || product.baseName || product.name,
+    product.image,
+    product.imageUrl
+  );
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[IMAGE_RENDER] ' + JSON.stringify({
+      key: productIdentity,
+      title: product.baseName || product.name,
+      imageUrl: product.imageUrl || product.image,
+      currentImage: currentUrl,
+      candidateIdx,
+      candidatesTotal: candidates.length,
+      imageLoaded,
+      failed: candidateIdx > 0,
+      candidates
+    }));
+  }
 
   // ── 4-second hard timeout per candidate ──────────────────────────────────
   useEffect(() => {
@@ -399,7 +433,7 @@ const ProductCard = memo(function ProductCard({ product, index = 99, inWishlistP
             const isBest = lowestStore?.storeName === store.storeName;
             return (
               <a
-                key={i}
+                key={`${store.storeName}-${store.price}`}
                 href={store.link || store.url}
                 target="_blank"
                 rel="noopener noreferrer"

@@ -50,7 +50,12 @@ class NykaaScraper extends BaseScraper {
           }, 100);
         });
       });
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 1200));
+
+      // Wait for network to settle after scrolling
+      try {
+        await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+      } catch (_) {}
 
       const finalUrl = page.url();
       const pageTitle = await page.title();
@@ -65,21 +70,44 @@ class NykaaScraper extends BaseScraper {
         throw new Error('WAF block page detected on Nykaa');
       }
 
-      // Try initial state JSON parsing
+      // Try preloaded state JSON parsing
       const jsonState = await page.evaluate(() => {
-        if (window.__INITIAL_STATE__) {
-          return window.__INITIAL_STATE__;
+        if (window.__PRELOADED_STATE__ &&
+            window.__PRELOADED_STATE__.searchListingPage &&
+            window.__PRELOADED_STATE__.searchListingPage.listingData &&
+            window.__PRELOADED_STATE__.searchListingPage.listingData.products) {
+          return window.__PRELOADED_STATE__.searchListingPage.listingData.products;
         }
         return null;
       });
 
-      console.log(`[Nykaa] JSON State __INITIAL_STATE__ present: ${!!jsonState}`);
+      console.log(`[Nykaa] Preloaded State present: ${!!jsonState}`);
 
       let rawProducts = [];
 
+      if (jsonState && jsonState.length > 0) {
+        console.log(`[Nykaa] Extracting products from preloaded state.`);
+        const isDomain = finalUrl.includes('nykaafashion') ? 'fashion' : 'beauty';
+        const baseDomain = isDomain === 'fashion' ? 'https://www.nykaafashion.com' : 'https://www.nykaa.com';
+        rawProducts = jsonState.slice(0, 12).map(p => {
+          const link = p.slug.startsWith('http') ? p.slug : (baseDomain + (p.slug.startsWith('/') ? '' : '/') + p.slug);
+          return {
+            title: p.name || p.title || '',
+            price: parseFloat(p.price) || null,
+            originalPrice: parseFloat(p.mrp) || null,
+            link: link,
+            image: p.imageUrl || null,
+            sourceAttr: 'json-preloaded-state',
+            candidates: p.imageUrl ? [{ url: p.imageUrl, attr: 'json-preloaded-state', score: 100 }] : [],
+            imageCandidates: p.imageUrl ? [{ url: p.imageUrl, attr: 'json-preloaded-state', score: 100 }] : [],
+            rating: p.rating ? parseFloat(p.rating) : null
+          };
+        }).filter(p => p.title && p.price);
+      }
+
       // Fallback to DOM parsing
       if (rawProducts.length === 0) {
-        console.log('[Nykaa] Extracting products using DOM parser.');
+        console.log('[Nykaa] Fallback: Extracting products using DOM parser.');
         rawProducts = await page.evaluate((finalUrl, extractImgFn) => {
           const items = [];
           const isDomain = finalUrl.includes('nykaafashion') ? 'fashion' : 'beauty';
@@ -115,60 +143,62 @@ class NykaaScraper extends BaseScraper {
                 if (card.querySelectorAll('img').length > 0 && card.querySelectorAll('h2, [class*="name"]').length > 0) break;
               }
 
-              // Image extraction with fallbacks
-              const imgResult = extractImg(card, 'Nykaa', window.location.href);
-              const image = imgResult.image;
-              const sourceAttr = imgResult.sourceAttr;
-
-              // Title extraction with fallbacks
-              const h2El = linkEl.querySelector('h2') ||
-                           card.querySelector('h2.css-xrzmfa') ||
-                           card.querySelector('h2, [class*="name"], [class*="title"]');
-              let title = h2El ? h2El.textContent.trim() : '';
-
-              if (!title || title.length < 3) {
-                title = linkEl.textContent.trim().split('\n')[0].trim();
-              }
-              if (!title || title.length < 3) continue;
-
-              // Prices extraction with fallbacks
-              const allText = (card.innerText || linkEl.innerText || '').replace(/\s+/g, ' ');
-              const priceMatch = allText.match(/₹\s*([\d,]+)/);
-              const price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : null;
-              if (!price || isNaN(price) || price <= 0) continue;
-
-              const allPrices = [...allText.matchAll(/₹\s*([\d,]+)/g)]
-                .map(m => parseFloat(m[1].replace(/,/g, '')));
-              const originalPrice = allPrices.length > 1
-                ? Math.max(...allPrices)
-                : price;
-
-              const ratingMatch = allText.match(/([1-5]\.\d)/);
-              const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
-
-              items.push({ title, price, originalPrice, link, image, sourceAttr, rating });
-            } catch (_) {}
-          }
-          return items;
-        }, finalUrl, extractImageInBrowser.toString());
-      }
-
-      console.log(`[Nykaa] Extracted count: ${rawProducts.length}`);
-
-      for (const p of rawProducts) {
-        logImageExtraction('Nykaa', p.title, p.image, p.sourceAttr);
-        results.push({
-          title:         p.title,
-          price:         p.price,
-          originalPrice: p.originalPrice || p.price,
-          link:          p.link,
-          image:         p.image || null,
-          rating:        p.rating || null,
-          brand:         'Unknown',
-          platform:      'Nykaa',
-          inStock:       true,
-        });
-      }
+               // Image extraction with fallbacks
+               const imgResult = extractImg(card, 'Nykaa', window.location.href);
+               const image = imgResult.image;
+               const sourceAttr = imgResult.sourceAttr;
+               const candidates = imgResult.candidates;
+ 
+               // Title extraction with fallbacks
+               const h2El = linkEl.querySelector('h2') ||
+                            card.querySelector('h2.css-xrzmfa') ||
+                            card.querySelector('h2, [class*="name"], [class*="title"]');
+               let title = h2El ? h2El.textContent.trim() : '';
+ 
+               if (!title || title.length < 3) {
+                 title = linkEl.textContent.trim().split('\n')[0].trim();
+               }
+               if (!title || title.length < 3) continue;
+ 
+               // Prices extraction with fallbacks
+               const allText = (card.innerText || linkEl.innerText || '').replace(/\s+/g, ' ');
+               const priceMatch = allText.match(/₹\s*([\d,]+)/);
+               const price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : null;
+               if (!price || isNaN(price) || price <= 0) continue;
+ 
+               const allPrices = [...allText.matchAll(/₹\s*([\d,]+)/g)]
+                 .map(m => parseFloat(m[1].replace(/,/g, '')));
+               const originalPrice = allPrices.length > 1
+                 ? Math.max(...allPrices)
+                 : price;
+ 
+               const ratingMatch = allText.match(/([1-5]\.\d)/);
+               const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
+ 
+               items.push({ title, price, originalPrice, link, image, sourceAttr, candidates, imageCandidates: candidates || [], rating });
+             } catch (_) {}
+           }
+           return items;
+         }, finalUrl, extractImageInBrowser.toString());
+       }
+ 
+       console.log(`[Nykaa] Extracted count: ${rawProducts.length}`);
+ 
+       for (const p of rawProducts) {
+         logImageExtraction('Nykaa', p.title, p.image, p.sourceAttr, p.candidates);
+         results.push({
+           title:         p.title,
+           price:         p.price,
+           originalPrice: p.originalPrice || p.price,
+           link:          p.link,
+           image:         p.image || null,
+           imageCandidates: p.imageCandidates || p.candidates || [],
+           rating:        p.rating || null,
+           brand:         'Unknown',
+           platform:      'Nykaa',
+           inStock:       true,
+         });
+       }
 
       return results;
     }, query, jobId);

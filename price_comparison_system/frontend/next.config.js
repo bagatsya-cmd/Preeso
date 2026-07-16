@@ -12,18 +12,26 @@ const nextConfig = {
     },
     images: {
         domains: [
-          'images.unsplash.com',
-          'www.amazon.in', 'm.media-amazon.com',
-          'rukminim2.flixcart.com', 'rukminim1.flixcart.com',
-          'assets.myntassets.com', 'constant.myntassets.com',
-          'cdn.fynd.com',                         // AJIO CDN
-          'img.ajio.com',                          // AJIO
-          'adn.ajio.com',
-          'images.unsplash.com',
-          'akamai.net',
+          // Amazon
+          'www.amazon.in', 'm.media-amazon.com', 'images-amazon.com',
+          'ssl-images-amazon.com', 'images.amazon.com',
+          // Flipkart
+          'rukminim2.flixcart.com', 'rukminim1.flixcart.com', 'rukminim3.flixcart.com',
+          'ext.fkcdn.com', 'img1.flixcart.com',
+          // Myntra
+          'assets.myntassets.com', 'constant.myntassets.com', 'www.myntassets.com',
+          // AJIO (uses Fynd CDN)
+          'cdn.fynd.com', 'img.ajio.com', 'adn.ajio.com',
+          'sg2-cf.fynd.com', 'fynd-media.fynd.com',
+          // Nykaa
           'nykaa.com', 'nykaafashion.com',
-          'images.nykaa.com', 'adn.nykaa.com',
-          'ext.fkcdn.com',
+          'images.nykaa.com', 'adn.nykaa.com', 'cdn.nykaa.com',
+          'nykaafashion.com',
+          // Reliance Digital
+          'www.reliancedigital.in', 'images.reliancedigital.in',
+          // Generic / Misc
+          'images.unsplash.com', 'akamai.net',
+          'cloudinary.com', 'res.cloudinary.com',
         ],
         unoptimized: true
     }

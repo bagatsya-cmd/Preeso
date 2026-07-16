@@ -15,8 +15,8 @@ const USER_AGENTS = [
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 ];
 
-// Resource types and URL patterns to block for speed
-const BLOCKED_RESOURCE_TYPES = new Set(['image', 'media', 'font', 'stylesheet', 'websocket']);
+// Resource types to block — images and stylesheets are ALLOWED for catalog-quality scraping
+const BLOCKED_RESOURCE_TYPES = new Set(['media', 'font', 'websocket']);
 const BLOCKED_URL_PATTERNS = [
   'google-analytics', 'googletagmanager', 'analytics', 'doubleclick',
   'facebook.com', 'fbevents', 'hotjar', 'clarity.ms', 'adsystem',

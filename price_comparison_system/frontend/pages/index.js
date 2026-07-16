@@ -174,6 +174,12 @@ export default function Home() {
             break;
 
           case 'partial-results':
+            console.log(
+              "[FRONTEND SSE RECEIVED]",
+              data.products?.[0]?.title,
+              data.products?.[0]?.image,
+              data.products?.[0]?.imageUrl
+            );
             setProducts(prev => {
               console.log('[PREV STATE LENGTH]', prev.length);
               const incoming = Array.isArray(data.products) ? data.products : [];
@@ -182,6 +188,14 @@ export default function Home() {
               console.log('[MERGED LENGTH]', merged.length);
               console.log('[MERGED DATA]', merged);
               setLiveCount(merged.length);
+              if (merged.length > 0) {
+                console.log(
+                  "[STATE IMAGE CHECK]",
+                  merged[0]?.title,
+                  merged[0]?.image,
+                  merged[0]?.imageUrl
+                );
+              }
               return merged;
             });
             if (data.final) {
@@ -723,7 +737,7 @@ export default function Home() {
                 {sorted.map((p, idx) => {
                   console.log('[DEBUG] rendering product', p.title || p.baseName);
                   try {
-                    return <ProductCard key={p._id || p.baseName || idx} product={p} index={idx} />;
+                    return <ProductCard key={p._id || p.stores?.[0]?.url || `${p.baseName || p.name}-${p.stores?.[0]?.storeName}`} product={p} index={idx} />;
                   } catch (err) {
                     console.error('[DEBUG] ProductCard crashed on:', p, err);
                     return <div key={`err-${idx}`}>Card Crash</div>;

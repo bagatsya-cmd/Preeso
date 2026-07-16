@@ -6,6 +6,14 @@ class FlipkartScraper extends BaseScraper {
   constructor() {
     super('Flipkart');
     this.containerSelector = 'div[data-id]';
+    this.waitUntil = 'domcontentloaded';
+  }
+
+  async preparePage(page) {
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    );
+    await page.setViewport({ width: 1440, height: 900 });
   }
 
   async search(query, jobId = null) {
@@ -15,27 +23,42 @@ class FlipkartScraper extends BaseScraper {
       const results = [];
       
       // Wait for products to load
-      await page.waitForSelector(this.containerSelector, { timeout: 10000 }).catch(() => {
+      await page.waitForSelector(this.containerSelector, { timeout: 15000 }).catch(() => {
         console.log('[Flipkart] product container selector wait timed out');
       });
 
-      // Scroll to trigger lazy loading of images
+      // Deep scroll to trigger lazy loading of all product images
       await page.evaluate(async () => {
-        await new Promise((resolve) => {
-          let totalHeight = 0;
-          const distance = 400;
-          const timer = setInterval(() => {
-            const scrollHeight = document.body.scrollHeight;
-            window.scrollBy(0, distance);
-            totalHeight += distance;
-            if (totalHeight >= scrollHeight || totalHeight > 3000) {
-              clearInterval(timer);
-              resolve();
-            }
-          }, 100);
-        });
+        for (let i = 0; i < 12; i++) {
+          window.scrollBy(0, 600);
+          await new Promise(r => setTimeout(r, 500));
+        }
+        // Scroll back to top slowly to re-trigger any viewport-based lazy loaders
+        window.scrollTo(0, 0);
+        await new Promise(r => setTimeout(r, 1500));
       });
-      await new Promise(r => setTimeout(r, 800));
+
+      // Wait for network to settle after scrolling
+      try {
+        await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+      } catch (_) {}
+
+      // Wait for at least one non-placeholder product image to load
+      await page.waitForFunction(() => {
+        const images = Array.from(document.querySelectorAll('div[data-id] img'));
+        return images.some(img => {
+          const src = img.src || '';
+          return src.startsWith('http') && 
+                 (src.includes('rukminim') || src.includes('rukmini') || src.includes('/image/'));
+        });
+      }, { timeout: 10000 }).catch(async () => {
+        console.log('[Flipkart] Wait for non-placeholder image timed out');
+        const imgDetails = await page.evaluate(() => {
+          const imgs = Array.from(document.querySelectorAll('div[data-id] img'));
+          return imgs.map(img => ({ src: img.src, class: img.className }));
+        });
+        console.log('[Flipkart DIAGNOSTIC IMAGES]:', JSON.stringify(imgDetails.slice(0, 10), null, 2));
+      });
 
       let rawProducts = [];
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -90,39 +113,75 @@ class FlipkartScraper extends BaseScraper {
                 if (!isNaN(orig)) originalPrice = orig;
               }
 
-              // Image extraction
-              const imgResult = extractImg(element, 'Flipkart', window.location.href);
-              const image = imgResult.image;
-              const sourceAttr = imgResult.sourceAttr;
+               // Image extraction
+               const imgResult = extractImg(element, 'Flipkart', window.location.href);
+               const image = imgResult.image;
+               const sourceAttr = imgResult.sourceAttr;
+               const candidates = imgResult.candidates;
+ 
+               // Link
+               const mainLinkEl = element.querySelector('a');
+               let link = mainLinkEl ? mainLinkEl.getAttribute('href') : '';
+               if (!link || link === 'about:blank' || link.includes('javascript:')) continue;
+               if (link.startsWith('/')) link = 'https://www.flipkart.com' + link;
+ 
+               items.push({
+                 platform: 'Flipkart', title, price, originalPrice, link,
+                 image, sourceAttr, candidates,
+                 imageCandidates: candidates || [],
+                 brand: brand || 'Unknown', inStock: true
+               });
+             } catch (_) {}
+           }
+           return items;
+         }, this.containerSelector, extractImageInBrowser.toString());
+ 
+         if (rawProducts.length > 0) {
+           break;
+         }
+ 
+         if (attempt < 3) {
+           console.log(`[Flipkart] Extraction attempt ${attempt} returned 0 items. Waiting 1s...`);
+           await new Promise(r => setTimeout(r, 1000));
+         }
+       }
 
-              // Link
-              const mainLinkEl = element.querySelector('a');
-              let link = mainLinkEl ? mainLinkEl.getAttribute('href') : '';
-              if (!link || link === 'about:blank' || link.includes('javascript:')) continue;
-              if (link.startsWith('/')) link = 'https://www.flipkart.com' + link;
+      // Image recovery: re-attempt extraction for products missing images
+      for (let i = 0; i < rawProducts.length; i++) {
+        const p = rawProducts[i];
+        if (p && p.title && p.price && !p.image) {
+          console.log(`[Flipkart] Image recovery: "${p.title.substring(0, 40)}..." — waiting 2s and re-extracting`);
+          await new Promise(r => setTimeout(r, 2000));
+          
+          // Scroll to the card area and re-extract
+          const recovered = await page.evaluate((selector, idx, extractImgFn) => {
+            const elements = Array.from(document.querySelectorAll(selector));
+            const el = elements[idx];
+            if (!el) return null;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const extractImg = new Function('return ' + extractImgFn)();
+            const result = extractImg(el, 'Flipkart', window.location.href);
+            return result;
+          }, this.containerSelector, i, extractImageInBrowser.toString());
 
-              items.push({ platform: 'Flipkart', title, price, originalPrice, link, image, sourceAttr, brand: brand || 'Unknown', inStock: true });
-            } catch (_) {}
+          if (recovered && recovered.image) {
+            console.log(`[Flipkart] Image recovery SUCCESS: ${recovered.image.substring(0, 80)}`);
+            rawProducts[i].image = recovered.image;
+            rawProducts[i].sourceAttr = recovered.sourceAttr;
+            rawProducts[i].candidates = recovered.candidates;
+            rawProducts[i].imageCandidates = recovered.candidates || [];
+          } else {
+            console.log(`[Flipkart] Image recovery FAILED for: "${p.title.substring(0, 40)}..."`);
           }
-          return items;
-        }, this.containerSelector, extractImageInBrowser.toString());
-
-        if (rawProducts.length > 0) {
-          break;
-        }
-
-        if (attempt < 3) {
-          console.log(`[Flipkart] Extraction attempt ${attempt} returned 0 items. Waiting 1s...`);
-          await new Promise(r => setTimeout(r, 1000));
         }
       }
-
-      for (const p of rawProducts) {
-        if (p && p.link && p.link.startsWith('http')) {
-          logImageExtraction('Flipkart', p.title, p.image, p.sourceAttr);
-          results.push(p);
-        }
-      }
+ 
+       for (const p of rawProducts) {
+         if (p && p.link && p.link.startsWith('http')) {
+           logImageExtraction('Flipkart', p.title, p.image, p.sourceAttr, p.candidates);
+           results.push(p);
+         }
+       }
 
       return results;
     }, query, jobId);

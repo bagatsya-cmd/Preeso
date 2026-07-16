@@ -5,8 +5,6 @@ const { extractImageInBrowser, logImageExtraction, cleanImageUrl, validateImageU
 class RelianceScraper extends BaseScraper {
   constructor() {
     super('Reliance Digital');
-    this.skipInterception = true;
-    this.timeoutMs = 15000; // Client-side rendered React SPA needs ample time
     this.containerSelector = 'a.details-container';
   }
 
@@ -49,9 +47,24 @@ class RelianceScraper extends BaseScraper {
             
             // Image extraction from medias
             let image = null;
+            const imageCandidates = [];
             if (item.medias && item.medias.length > 0) {
-              const cleaned = cleanImageUrl(item.medias[0].url || '');
-              image = validateImageUrl(cleaned, 'https://www.reliancedigital.in') || null;
+              item.medias.forEach((m, idx) => {
+                if (m.url) {
+                  const cleaned = cleanImageUrl(m.url);
+                  const validated = validateImageUrl(cleaned, 'https://www.reliancedigital.in');
+                  if (validated) {
+                    imageCandidates.push({
+                      url: validated,
+                      attr: `json-medias[${idx}]`,
+                      score: idx === 0 ? 100 : 90
+                    });
+                  }
+                }
+              });
+              if (imageCandidates.length > 0) {
+                image = imageCandidates[0].url;
+              }
             }
             logImageExtraction('Reliance Digital', title, image, image ? 'json' : null);
 
@@ -61,6 +74,7 @@ class RelianceScraper extends BaseScraper {
               originalPrice: price,
               link,
               image,
+              imageCandidates,
               brand: item.brand && item.brand.name ? item.brand.name : 'Unknown',
               platform: 'Reliance Digital',
               inStock: true
@@ -76,12 +90,27 @@ class RelianceScraper extends BaseScraper {
 
       let hydrated = false;
       // Wait for React to render product details containers
-      await page.waitForSelector(this.containerSelector, { timeout: 10000 }).then(() => {
+      await page.waitForSelector(this.containerSelector, { timeout: 15000 }).then(() => {
         hydrated = true;
         console.log('[Reliance Digital] React app hydrated successfully.');
       }).catch(() => {
-        console.log('[Reliance Digital] details-container not found within 10s. Hydration status: failed or delayed.');
+        console.log('[Reliance Digital] details-container not found within 15s. Hydration status: failed or delayed.');
       });
+
+      // Scroll to trigger lazy loading of images
+      await page.evaluate(async () => {
+        for (let i = 0; i < 6; i++) {
+          window.scrollBy(0, 600);
+          await new Promise(r => setTimeout(r, 400));
+        }
+        window.scrollTo(0, 0);
+        await new Promise(r => setTimeout(r, 1000));
+      });
+
+      // Wait for network to settle after scrolling
+      try {
+        await page.waitForNetworkIdle({ idleTime: 1000, timeout: 5000 });
+      } catch (_) {}
 
       const rawProducts = await page.evaluate((extractImgFn) => {
         const items = [];
@@ -115,25 +144,58 @@ class RelianceScraper extends BaseScraper {
             const grandparent = parent ? parent.parentElement : null;
             const container   = grandparent || anchor;
 
-            const imgResult = extractImg(container, 'Reliance Digital', window.location.href);
-            const image = imgResult.image;
-            const sourceAttr = imgResult.sourceAttr;
+             const imgResult = extractImg(container, 'Reliance Digital', window.location.href);
+             const image = imgResult.image;
+             const sourceAttr = imgResult.sourceAttr;
+             const candidates = imgResult.candidates;
 
-            items.push({ title, price, link, image, sourceAttr });
-          } catch (e) {}
+             items.push({ title, price, link, image, sourceAttr, candidates, imageCandidates: candidates || [] });
+           } catch (e) {}
+         }
+         return items;
+       }, extractImageInBrowser.toString());
+
+      // Image recovery for products missing images
+      for (let i = 0; i < rawProducts.length; i++) {
+        const p = rawProducts[i];
+        if (p && p.title && p.price && !p.image) {
+          console.log(`[Reliance Digital] Image recovery: "${p.title.substring(0, 40)}..." — waiting 2s and re-extracting`);
+          await new Promise(r => setTimeout(r, 2000));
+
+          const recovered = await page.evaluate((idx, extractImgFn) => {
+            const detailAnchors = Array.from(document.querySelectorAll('a.details-container'));
+            const anchor = detailAnchors[idx];
+            if (!anchor) return null;
+            const parent      = anchor.parentElement;
+            const grandparent = parent ? parent.parentElement : null;
+            const container   = grandparent || anchor;
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const extractImg = new Function('return ' + extractImgFn)();
+            return extractImg(container, 'Reliance Digital', window.location.href);
+          }, i, extractImageInBrowser.toString());
+
+          if (recovered && recovered.image) {
+            console.log(`[Reliance Digital] Image recovery SUCCESS: ${recovered.image.substring(0, 80)}`);
+            rawProducts[i].image = recovered.image;
+            rawProducts[i].sourceAttr = recovered.sourceAttr;
+            rawProducts[i].candidates = recovered.candidates;
+            rawProducts[i].imageCandidates = recovered.candidates || [];
+          } else {
+            console.log(`[Reliance Digital] Image recovery FAILED for: "${p.title.substring(0, 40)}..."`);
+          }
         }
-        return items;
-      }, extractImageInBrowser.toString());
+      }
 
-      console.log(`[Reliance Digital] Hydration status: ${hydrated ? 'hydrated' : 'not-hydrated'}. Raw scrape returned ${rawProducts.length} items.`);
+       console.log(`[Reliance Digital] Hydration status: ${hydrated ? 'hydrated' : 'not-hydrated'}. Raw scrape returned ${rawProducts.length} items.`);
 
-      return rawProducts.map(p => {
-        logImageExtraction('Reliance Digital', p.title, p.image, p.sourceAttr);
+       return rawProducts.map(p => {
+         logImageExtraction('Reliance Digital', p.title, p.image, p.sourceAttr, p.candidates);
         return {
           title: p.title,
           price: p.price,
           link: p.link,
           image: p.image || null,
+          imageCandidates: p.imageCandidates || [],
           originalPrice: p.price,
           platform: 'Reliance Digital',
           inStock: true

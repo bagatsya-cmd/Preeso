@@ -30,6 +30,40 @@ function PlatformChip({ storeName }) {
 
 function formatPrice(p) { return '₹' + Number(p).toLocaleString('en-IN'); }
 
+const CDN_PRIORITY = ['amazon.in', 'm.media-amazon', 'fkimg.com', 'rukminim', 'reliancedigital', 'myntassets', 'myntraassets'];
+function cdnScore(url) {
+  if (!url) return -1;
+  const lower = url.toLowerCase();
+  for (let i = 0; i < CDN_PRIORITY.length; i++) {
+    if (lower.includes(CDN_PRIORITY[i])) return CDN_PRIORITY.length - i;
+  }
+  return 0;
+}
+
+function buildCandidates(product) {
+  if (!product) return [];
+  const raw = [
+    product.image,
+    product.imageUrl,
+    ...(product.stores || []).map(s => s.image),
+    ...(product.stores || []).map(s => s.thumbnail),
+  ];
+
+  const seen = new Set();
+  const unique = [];
+  for (const u of raw) {
+    if (!u || typeof u !== 'string') continue;
+    const norm = u.trim().startsWith('//') ? 'https:' + u.trim() : u.trim();
+    if (!norm.startsWith('http')) continue;
+    if (norm.toLowerCase().startsWith('data:')) continue;
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    unique.push(norm);
+  }
+
+  return unique.sort((a, b) => cdnScore(b) - cdnScore(a));
+}
+
 export default function ProductPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -37,10 +71,17 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [inWishlist, setInWishlist] = useState(false);
 
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     axios.get(`/api/products/${id}`).then(r => { 
       setProduct(r.data); 
+      setCandidateIdx(0);
+      setRetryCount(0);
+      setImageLoaded(false);
       setLoading(false); 
       
       const token = localStorage.getItem('preeso_token') || localStorage.getItem('comparex_token');
@@ -70,6 +111,30 @@ export default function ProductPage() {
     </>
   );
 
+  const candidates = buildCandidates(product);
+  const currentUrl = candidates[candidateIdx] ?? null;
+
+  const advanceCandidate = () => {
+    setRetryCount(0);
+    setImageLoaded(false);
+    setCandidateIdx(prev => prev + 1);
+  };
+
+  const handleError = () => {
+    if (retryCount < 2) {
+      setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        setImageLoaded(false);
+      }, 250);
+    } else {
+      setTimeout(advanceCandidate, 250);
+    }
+  };
+
+  const handleLoad = () => {
+    setImageLoaded(true);
+  };
+
   const stores = product.stores || [];
   const enableAmazon = process.env.ENABLE_AMAZON === 'true';
   const validStores = stores.filter(s => s.price > 0 && (enableAmazon || s.storeName !== 'Amazon')).sort((a,b) => a.price - b.price);
@@ -97,7 +162,7 @@ export default function ProductPage() {
         <meta property="og:description" content={`Compare prices for ${product.name} across Flipkart, Myntra, AJIO, Nykaa and more. Find the best deal and track price history with Preeso.`} />
         <meta property="og:url" content={`https://www.preeso.co.in/product/${product._id || id}`} />
         <meta property="og:type" content="website" />
-        <meta property="og:image" content={product.imageUrl || product.image || "https://www.preeso.co.in/preeso-icon.png"} />
+        <meta property="og:image" content={currentUrl || "https://www.preeso.co.in/preeso-icon.png"} />
 
         <link rel="icon" href="/favicon.png" />
         <style>{`
@@ -137,8 +202,32 @@ export default function ProductPage() {
           <div className="product-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 560px) 1fr', gap: 48, alignItems: 'start' }}>
             {/* Left: Image */}
             <div>
-              <div style={{ background: 'var(--brand-primary)', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border-color)', aspectRatio: '1/1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, position: 'relative' }}>
-                <img src={product.image || product.imageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600'} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600'; }} />
+              <div style={{ background: 'var(--brand-primary)', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border-color)', aspectRatio: '1/1', display: 'flex', alignItems: 'center', justifycontent: 'center', padding: 32, position: 'relative' }}>
+                {!imageLoaded && currentUrl && (
+                  <div className="skeleton" style={{ position: 'absolute', inset: 0, borderRadius: 0, zIndex: 1 }} />
+                )}
+                {currentUrl ? (
+                  <img
+                    key={`${candidateIdx}-${retryCount}`}
+                    src={currentUrl}
+                    alt={product.name}
+                    loading="eager"
+                    referrerPolicy="no-referrer"
+                    style={{
+                      position: 'relative',
+                      zIndex: 2,
+                      maxWidth: '90%',
+                      maxHeight: '90%',
+                      objectFit: 'contain',
+                      opacity: imageLoaded ? 1 : 0,
+                      transition: 'opacity 0.3s ease'
+                    }}
+                    onLoad={handleLoad}
+                    onError={handleError}
+                  />
+                ) : (
+                  <span style={{ fontSize: '4rem', zIndex: 2 }}>📦</span>
+                )}
                 <button onClick={toggleWishlist} style={{ position: 'absolute', top: 20, right: 20, zIndex: 10, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill={inWishlist ? "var(--error)" : "none"} stroke={inWishlist ? "var(--error)" : "var(--text-secondary)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 </button>
